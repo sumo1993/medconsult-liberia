@@ -46,3 +46,7 @@ next-env.d.ts
 *.tar.gz
 public/uploads/**
 !public/uploads/**/.gitkeep
+*.md
+!README.md
+test-*.js
+setup-*.sh
