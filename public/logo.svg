@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Circle with chat bubble -->
+  <circle cx="512" cy="400" r="180" fill="none" stroke="#0d9488" stroke-width="20"/>
+  <path d="M 600 550 L 650 600 L 600 600 Z" fill="#0d9488"/>
+  
+  <!-- Medical cross -->
+  <rect x="490" y="320" width="44" height="120" fill="#0d9488"/>
+  <rect x="460" y="350" width="104" height="44" fill="#0d9488"/>
+  
+  <!-- Two people silhouettes -->
+  <circle cx="450" cy="420" r="25" fill="#0d9488"/>
+  <path d="M 420 450 Q 450 470 480 450 L 480 480 L 420 480 Z" fill="#0d9488"/>
+  
+  <circle cx="574" cy="420" r="25" fill="#0d9488"/>
+  <path d="M 544 450 Q 574 470 604 450 L 604 480 L 544 480 Z" fill="#0d9488"/>
+  
+  <!-- Text -->
+  <text x="512" y="700" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#0d9488" text-anchor="middle">MedConsult</text>
+  <text x="512" y="820" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#0d9488" text-anchor="middle">Liberia</text>
+</svg>

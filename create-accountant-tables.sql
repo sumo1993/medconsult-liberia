@@ -1,0 +1,67 @@
+-- Create transactions table
+CREATE TABLE IF NOT EXISTS transactions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  transaction_type ENUM('consultation_fee', 'partnership_payment', 'expense', 'refund', 'other') NOT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  currency VARCHAR(10) DEFAULT 'USD',
+  description TEXT,
+  consultant_id INT,
+  client_id INT,
+  partnership_id INT,
+  payment_method VARCHAR(50),
+  payment_status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
+  transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (consultant_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (partnership_id) REFERENCES partnerships(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Create consultant_earnings table
+CREATE TABLE IF NOT EXISTS consultant_earnings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  consultant_id INT NOT NULL,
+  transaction_id INT,
+  amount DECIMAL(10, 2) NOT NULL,
+  commission_rate DECIMAL(5, 2) DEFAULT 70.00,
+  net_earning DECIMAL(10, 2) NOT NULL,
+  payment_status ENUM('pending', 'paid', 'on_hold') DEFAULT 'pending',
+  payment_date DATETIME,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (consultant_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+);
+
+-- Create expenses table
+CREATE TABLE IF NOT EXISTS expenses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  category VARCHAR(100) NOT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  description TEXT,
+  expense_date DATE NOT NULL,
+  receipt_url VARCHAR(500),
+  approved_by INT,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Add accountant_id to team_members table (if not exists)
+ALTER TABLE team_members 
+ADD COLUMN IF NOT EXISTS accountant_id INT,
+ADD FOREIGN KEY (accountant_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- Add indexes for better performance
+CREATE INDEX idx_transactions_date ON transactions(transaction_date);
+CREATE INDEX idx_transactions_consultant ON transactions(consultant_id);
+CREATE INDEX idx_consultant_earnings_consultant ON consultant_earnings(consultant_id);
+CREATE INDEX idx_consultant_earnings_status ON consultant_earnings(payment_status);
+CREATE INDEX idx_expenses_date ON expenses(expense_date);

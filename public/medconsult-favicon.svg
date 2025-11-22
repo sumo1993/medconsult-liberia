@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Chat bubble circle -->
+  <circle cx="100" cy="90" r="70" fill="none" stroke="#0d9488" stroke-width="8"/>
+  
+  <!-- Chat bubble tail -->
+  <path d="M 130 145 L 145 165 L 125 150 Z" fill="#0d9488"/>
+  
+  <!-- Medical cross -->
+  <rect x="90" y="60" width="20" height="50" fill="#0d9488"/>
+  <rect x="75" y="75" width="50" height="20" fill="#0d9488"/>
+  
+  <!-- Left person (circle head + body) -->
+  <circle cx="70" cy="105" r="12" fill="#0d9488"/>
+  <path d="M 58 120 Q 70 130 82 120 L 82 140 L 58 140 Z" fill="#0d9488"/>
+  
+  <!-- Right person (circle head + body) -->
+  <circle cx="130" cy="105" r="12" fill="#0d9488"/>
+  <path d="M 118 120 Q 130 130 142 120 L 142 140 L 118 140 Z" fill="#0d9488"/>
+</svg>
