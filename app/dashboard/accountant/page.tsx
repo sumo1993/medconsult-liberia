@@ -660,7 +660,8 @@ export default function AccountantDashboard() {
       consultant_id: transaction.consultant_id || '',
       payment_method: transaction.payment_method,
       transaction_date: transaction.transaction_date.split('T')[0],
-      receipt_photo: ''
+      receipt_photo: '',
+      distribute_to_team: transaction.distribute_to_team || false
     });
     setShowEditTransaction(true);
   };
