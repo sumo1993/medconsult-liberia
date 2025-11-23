@@ -677,7 +677,7 @@ export default function AccountantDashboard() {
     if (response.ok) {
       setShowEditTransaction(false);
       setSelectedTransaction(null);
-      setTransactionForm({ transaction_type: 'consultation_fee', amount: '', description: '', consultant_id: '', payment_method: 'cash', transaction_date: new Date().toISOString().split('T')[0], receipt_photo: '' });
+      setTransactionForm({ transaction_type: 'consultation_fee', amount: '', description: '', consultant_id: '', payment_method: 'cash', transaction_date: new Date().toISOString().split('T')[0], receipt_photo: '', distribute_to_team: false });
       fetchData();
       showToast('Transaction updated successfully! ✏️');
     } else {
@@ -1825,7 +1825,7 @@ export default function AccountantDashboard() {
                                 
                                 {unpaidAmount > 0 && (
                                   <button 
-                                    onClick={() => handlePayNow({}, 'ceo')}
+                                    onClick={() => handlePayNow({}, 'other_team')}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-sm mb-2"
                                   >
                                     <DollarSign size={16} /> Pay CEO
