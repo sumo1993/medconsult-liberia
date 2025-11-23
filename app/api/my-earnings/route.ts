@@ -21,7 +21,15 @@ export async function GET(request: NextRequest) {
     
     const totalTeamFee = parseFloat(totalTeamFees[0]?.total_team_fee || 0);
 
-    let earnings = {
+    let earnings: {
+      role: string;
+      totalEarned: number;
+      totalPaid: number;
+      unpaid: number;
+      lastPaymentDate: any;
+      paymentStatus: string;
+      breakdown: any;
+    } = {
       role: userRole,
       totalEarned: 0,
       totalPaid: 0,
