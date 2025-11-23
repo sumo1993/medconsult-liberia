@@ -650,7 +650,7 @@ export default function AssignmentFilesPage() {
                             <p className="text-gray-600 mb-4 font-semibold">{viewingFile?.file_name}</p>
                             {viewingFile?.file_size && (
                               <p className="text-sm text-gray-700 mb-4">
-                                File Size: <strong>{formatFileSize(viewingFile.file_size)}</strong>
+                                File Size: <strong>{formatFileSize(viewingFile!.file_size)}</strong>
                               </p>
                             )}
                             <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 mb-6">
