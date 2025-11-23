@@ -10,7 +10,22 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  ssl: process.env.DB_HOST?.includes('aivencloud.com') ? { rejectUnauthorized: false } : undefined,
+  connectTimeout: 60000, // 60 seconds
+  acquireTimeout: 60000,
+  timeout: 60000,
+  ssl: process.env.DB_HOST?.includes('aivencloud.com') ? { 
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2'
+  } : undefined,
+});
+
+// Log connection info on startup (without password)
+console.log('[DB] Connection pool created:', {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  database: process.env.DB_NAME,
+  ssl: !!process.env.DB_HOST?.includes('aivencloud.com')
 });
 
 // Helper function for executing queries
