@@ -56,7 +56,7 @@ export async function authenticateUser(email: string, password: string): Promise
   try {
     console.log('[Auth] Attempting to authenticate:', email);
     const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT * FROM users WHERE email = ? AND status = "active"',
+      'SELECT * FROM users WHERE email = ?',
       [email]
     );
 
@@ -68,6 +68,13 @@ export async function authenticateUser(email: string, password: string): Promise
 
     const user = rows[0];
     console.log('[Auth] User found - ID:', user.id, 'Role:', user.role);
+    
+    // Check status if column exists
+    if (user.status && user.status !== 'active') {
+      console.log('[Auth] User status is not active:', user.status);
+      return null;
+    }
+    
     console.log('[Auth] Password hash exists:', !!user.password_hash);
     console.log('[Auth] Password hash length:', user.password_hash?.length);
     console.log('[Auth] Password hash prefix:', user.password_hash?.substring(0, 10));
