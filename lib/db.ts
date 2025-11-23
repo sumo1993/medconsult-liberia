@@ -11,8 +11,6 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 60000, // 60 seconds
-  acquireTimeout: 60000,
-  timeout: 60000,
   ssl: process.env.DB_HOST?.includes('aivencloud.com') ? { 
     rejectUnauthorized: false,
     minVersion: 'TLSv1.2'
