@@ -649,7 +649,7 @@ export default function AssignmentFilesPage() {
                             <h4 className="text-lg font-semibold text-gray-900 mb-2">📄 PDF Document Ready</h4>
                             <p className="text-gray-600 mb-4 font-semibold">{viewingFile?.file_name}</p>
                             <p className="text-sm text-gray-700 mb-4">
-                              File Size: <strong>{viewingFile ? formatFileSize(viewingFile.file_size) : 'N/A'}</strong>
+                              File Size: <strong>{viewingFile && viewingFile.file_size ? formatFileSize(viewingFile.file_size) : 'N/A'}</strong>
                             </p>
                             <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 mb-6">
                               <p className="text-sm text-gray-800 mb-4">
