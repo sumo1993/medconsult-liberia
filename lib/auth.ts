@@ -54,17 +54,31 @@ export async function getUserById(id: number): Promise<User | null> {
 
 export async function authenticateUser(email: string, password: string): Promise<User | null> {
   try {
+    console.log('[Auth] Attempting to authenticate:', email);
     const [rows] = await pool.execute<RowDataPacket[]>(
       'SELECT * FROM users WHERE email = ? AND status = "active"',
       [email]
     );
 
-    if (rows.length === 0) return null;
+    console.log('[Auth] Users found:', rows.length);
+    if (rows.length === 0) {
+      console.log('[Auth] No user found with email:', email);
+      return null;
+    }
 
     const user = rows[0];
+    console.log('[Auth] User found - ID:', user.id, 'Role:', user.role);
+    console.log('[Auth] Password hash exists:', !!user.password_hash);
+    console.log('[Auth] Password hash length:', user.password_hash?.length);
+    console.log('[Auth] Password hash prefix:', user.password_hash?.substring(0, 10));
+    
     const isValid = await verifyPassword(password, user.password_hash);
+    console.log('[Auth] Password valid:', isValid);
 
-    if (!isValid) return null;
+    if (!isValid) {
+      console.log('[Auth] Password verification failed');
+      return null;
+    }
 
     // Update last login
     await pool.execute(
