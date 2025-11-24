@@ -1,14 +1,16 @@
-'use client';
-
-import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Calendar, User, ArrowLeft, BookOpen } from 'lucide-react';
+import Link from 'next/link';
 
-export default function BlogPostPage() {
-  const params = useParams();
-  const router = useRouter();
-  const postId = params.id as string;
+interface BlogPostPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function BlogPostPage({ params }: BlogPostPageProps) {
+  const postId = params.id;
 
   // Blog post data (in a real app, this would come from a database or API)
   const posts = [
@@ -1166,13 +1168,13 @@ export default function BlogPostPage() {
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Post Not Found</h1>
             <p className="text-gray-600 mb-8">The blog post you're looking for doesn't exist.</p>
-            <button
-              onClick={() => router.push('/blog')}
+            <Link
+              href="/blog"
               className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 mx-auto"
             >
               <ArrowLeft size={20} />
               Back to Blog
-            </button>
+            </Link>
           </div>
         </main>
         <Footer />
@@ -1187,13 +1189,13 @@ export default function BlogPostPage() {
         {/* Hero Section */}
         <section className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <button
-              onClick={() => router.push('/blog')}
+            <Link
+              href="/blog"
               className="flex items-center gap-2 text-emerald-100 hover:text-white mb-6 transition-colors"
             >
               <ArrowLeft size={20} />
               Back to Blog
-            </button>
+            </Link>
             <span className="inline-block px-3 py-1 bg-emerald-500 rounded-full text-sm font-semibold mb-4">
               {post.category}
             </span>
@@ -1247,12 +1249,12 @@ export default function BlogPostPage() {
               <p className="text-emerald-100 mb-6">
                 Connect with qualified healthcare professionals through MedConsult Liberia
               </p>
-              <button
-                onClick={() => router.push('/book-consultation')}
+              <Link
+                href="/book-consultation"
                 className="bg-white text-emerald-600 px-8 py-3 rounded-lg font-semibold hover:bg-emerald-50 transition-colors"
               >
                 Book a Consultation
-              </button>
+              </Link>
             </div>
           </div>
         </section>
