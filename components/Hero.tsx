@@ -83,7 +83,7 @@ export default function Hero() {
       
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 max-w-5xl">
         <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-emerald-700 mb-8 leading-tight">
-          Expert Medical Consultation in Monrovia
+          Expert Medical Consultation in Liberia
         </h1>
         <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light">
           Decades of experience in <span className="text-emerald-600 font-semibold">clinical practice</span>, <span className="text-emerald-600 font-semibold">medical research</span>, and <span className="text-emerald-600 font-semibold">public health initiatives</span> with NGOs and government projects across Liberia.
@@ -103,7 +103,7 @@ export default function Hero() {
           </a>
           <a
             href="#partnerships"
-            className="inline-block px-8 py-3 bg-yellow-600 text-gray-900 font-semibold rounded-md hover:bg-yellow-700 transition-all"
+            className="inline-block px-8 py-3 bg-emerald-600 text-white font-semibold rounded-md hover:bg-emerald-700 transition-all"
           >
             Partner With Us
           </a>

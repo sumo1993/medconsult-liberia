@@ -6,7 +6,7 @@ const partnerships = [
     title: 'Government Collaboration',
     description: 'We are open to working with government agencies on public health initiatives, policy development, and healthcare infrastructure projects.',
     buttonText: 'Propose Collaboration',
-    buttonStyle: 'bg-yellow-600 hover:bg-yellow-700 text-gray-900',
+    buttonStyle: 'bg-emerald-600 hover:bg-emerald-700 text-white',
   },
   {
     icon: DollarSign,
@@ -20,7 +20,7 @@ const partnerships = [
     title: 'NGO Alliances',
     description: 'We seek partnerships with NGOs to implement health education programs, vaccination campaigns, and specialized medical services.',
     buttonText: 'Explore Partnership',
-    buttonStyle: 'bg-yellow-600 hover:bg-yellow-700 text-gray-900',
+    buttonStyle: 'bg-emerald-600 hover:bg-emerald-700 text-white',
   },
 ];
 

@@ -40,9 +40,9 @@ export default function DoctorsPage() {
       const response = await fetch('/api/doctors/public');
       if (response.ok) {
         const data = await response.json();
-        // Filter to only show lead consultant (not System Administrator)
+        // Filter to only show lead consultant (exclude System Administrator)
         const filteredDoctors = data.doctors.filter((doc: Doctor) => 
-          doc.status !== 'System Administrator' && doc.status !== 'Medical Professional'
+          doc.full_name !== 'System Administrator'
         );
         setDoctors(filteredDoctors);
       }
@@ -171,14 +171,18 @@ export default function DoctorsPage() {
                     )}
                   </div>
 
-                  {/* About Dr. Section */}
+                  {/* About Section */}
                   {doctor.about_text && (
-                    <div className="bg-emerald-50 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-bold text-emerald-900 mb-2 flex items-center">
-                        <BookOpen size={16} className="mr-2" />
-                        About {doctor.full_name?.split(' ')[0]}
+                    <div className="bg-emerald-50 rounded-lg p-5 mb-4 border border-emerald-100">
+                      <h4 className="text-base font-bold text-emerald-900 mb-3 flex items-center">
+                        <BookOpen size={18} className="mr-2" />
+                        About Our Lead Consultant
                       </h4>
-                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                      <div className="mb-3 pb-3 border-b border-emerald-200">
+                        <p className="text-lg font-bold text-gray-900">{doctor.full_name}</p>
+                        <p className="text-base text-emerald-600 font-medium">{doctor.status}</p>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 text-justify">
                         {doctor.about_text}
                       </p>
                     </div>
@@ -227,6 +231,7 @@ export default function DoctorsPage() {
                   </div>
                 )}
                 <div>
+                  <p className="text-sm text-emerald-100 mb-1">About Our Lead Consultant</p>
                   <h2 className="text-2xl font-bold">{selectedDoctor.full_name}</h2>
                   <p className="text-emerald-100">{selectedDoctor.status}</p>
                 </div>
@@ -241,12 +246,16 @@ export default function DoctorsPage() {
 
             {/* Modal Content */}
             <div className="p-8">
-              <h3 className="text-2xl font-bold text-emerald-700 mb-4">
-                About {selectedDoctor.full_name?.split(' ')[0]}
+              <h3 className="text-3xl font-bold text-emerald-700 mb-3">
+                About Our Lead Consultant
               </h3>
+              <div className="mb-6 pb-6 border-b-2 border-emerald-100">
+                <p className="text-2xl font-bold text-gray-900 mb-1">{selectedDoctor.full_name}</p>
+                <p className="text-xl text-emerald-600 font-semibold">{selectedDoctor.status}</p>
+              </div>
               
               <div className="prose max-w-none">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg">
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-base text-justify" style={{lineHeight: '1.8'}}>
                   {selectedDoctor.about_text}
                 </p>
               </div>

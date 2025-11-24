@@ -386,6 +386,91 @@ export default function PartnershipsPage() {
           </div>
         </section>
 
+        {/* Featured Partner - SunRise African Rentals */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Partner</h2>
+              <p className="text-xl text-gray-600">Supporting our community with quality services</p>
+            </div>
+            
+            <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden hover:border-emerald-500 transition-all duration-300">
+              <div className="grid md:grid-cols-2 gap-0">
+                {/* Left Side - Info */}
+                <div className="p-8 md:p-12 flex flex-col justify-center">
+                  <div className="inline-block px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-semibold mb-4 w-fit">
+                    🤝 Event Services Partner
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                    SunRise African Rentals
+                  </h3>
+                  <p className="text-gray-600 mb-6 text-lg leading-relaxed">
+                    Your trusted partner for event rentals in Monrovia. Whether you're planning a medical conference, 
+                    health workshop, or community health event, SunRise African Rentals provides quality chairs, tables, 
+                    canopies, and event equipment to make your event successful.
+                  </p>
+                  
+                  <div className="space-y-3 mb-8">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="text-emerald-600 flex-shrink-0 mt-1" size={20} />
+                      <span className="text-gray-700">High-quality chairs, tables, and canopies</span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="text-emerald-600 flex-shrink-0 mt-1" size={20} />
+                      <span className="text-gray-700">Professional delivery and setup services</span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="text-emerald-600 flex-shrink-0 mt-1" size={20} />
+                      <span className="text-gray-700">Serving Monrovia and surrounding areas</span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="text-emerald-600 flex-shrink-0 mt-1" size={20} />
+                      <span className="text-gray-700">Affordable rates for all event sizes</span>
+                    </div>
+                  </div>
+                  
+                  <a
+                    href="https://www.sunriseafricanrentals.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    Visit SunRise African Rentals
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </a>
+                </div>
+                
+                {/* Right Side - Promotional Image */}
+                <div className="bg-white p-4 md:p-6 flex items-center justify-center overflow-hidden">
+                  <img 
+                    src="/images/partners/sunrise-rentals-promo.png" 
+                    alt="SunRise African Rentals - Perfect Events Unforgettable Moments"
+                    className="w-full h-auto object-contain"
+                    style={{ maxHeight: '600px' }}
+                    onError={(e) => {
+                      // Fallback if image doesn't load
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.innerHTML = `
+                        <div class="text-center text-white p-8">
+                          <h3 class="text-3xl font-bold mb-4" style="color: #FFD700">Sunrise African Rentals</h3>
+                          <p class="text-xl mb-4">"Perfect Events Unforgettable Moments"</p>
+                          <div class="space-y-2 text-sm">
+                            <p>📞 +231 77 854 5109 / 0880602428</p>
+                            <p>📍 Chai Filed Caesar Town, Rehab Paynesville, Monrovia</p>
+                            <p>🌐 www.sunriseafricanrentals.com</p>
+                          </div>
+                        </div>
+                      `;
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="py-16 bg-gradient-to-r from-emerald-600 to-teal-600">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

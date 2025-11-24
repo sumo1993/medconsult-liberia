@@ -130,6 +130,33 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Partnership Banner - SunRise African Rentals */}
+        <div className="border-t border-gray-800 pt-8 pb-6">
+          <div className="bg-gray-800 border-2 border-gray-700 rounded-xl p-6 mb-6 hover:border-emerald-500 transition-all duration-300">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-center md:text-left flex-1">
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                  <span className="text-2xl">🪑</span>
+                  <h4 className="text-white text-lg font-semibold">
+                    Need Event Rentals in Monrovia?
+                  </h4>
+                </div>
+                <p className="text-gray-400 text-sm md:text-base">
+                  Chairs, tables, canopy & more • Partner with <span className="text-emerald-400 font-semibold">SunRise African Rentals</span>
+                </p>
+              </div>
+              <a
+                href="https://www.sunriseafricanrentals.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-emerald-500 transition-all duration-300 shadow-md hover:shadow-lg whitespace-nowrap text-sm"
+              >
+                Visit Website →
+              </a>
+            </div>
+          </div>
+        </div>
+
         <div className="border-t border-gray-800 pt-6 text-center">
           <p className="text-gray-500 text-sm">
             &copy; 2023 MedConsult Liberia. All rights reserved.
