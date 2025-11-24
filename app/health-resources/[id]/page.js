@@ -6,8 +6,8 @@ export default function BlogPostPage({ params }) {
         <p className="text-lg text-gray-600 mb-12">
           This is a placeholder for blog post content.
         </p>
-        <a href="/blog" className="text-blue-600 hover:underline">
-          ← Back to Blog
+        <a href="/health-resources" className="text-blue-600 hover:underline">
+          ← Back to Health Resources
         </a>
       </div>
     </div>
