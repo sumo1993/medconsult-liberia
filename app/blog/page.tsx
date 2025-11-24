@@ -27,7 +27,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Calendar, User, ArrowRight, BookOpen, ExternalLink, Database, TrendingUp, AlertTriangle, Shield, Globe, Newspaper, Heart, RefreshCw } from 'lucide-react';
-import { getHealthNews } from '@/lib/health-news';
+import { getHealthNews, OutbreakAlert, NewsItem } from '@/lib/health-news';
 import BlogClient from './BlogClient';
 
 // Revalidate every hour (3600 seconds) - Next.js ISR
@@ -38,7 +38,7 @@ export default async function BlogPage() {
   const healthNewsData = await getHealthNews();
 
   // Use fetched data or fallback to static data
-  const outbreakAlerts = healthNewsData.outbreakAlerts.length > 0 ? healthNewsData.outbreakAlerts : [
+  const outbreakAlerts: OutbreakAlert[] = healthNewsData.outbreakAlerts.length > 0 ? healthNewsData.outbreakAlerts : [
     {
       id: 13,
       title: 'URGENT: HIV Crisis in Liberia - Get Tested Now',
@@ -92,7 +92,7 @@ export default async function BlogPage() {
   ];
 
   // Latest News - Liberia & World Health Updates
-  const latestNews = healthNewsData.latestNews.length > 0 ? healthNewsData.latestNews : [
+  const latestNews: NewsItem[] = healthNewsData.latestNews.length > 0 ? healthNewsData.latestNews : [
     {
       id: 7,
       title: 'WHO Approves New Malaria Vaccine for Children',
