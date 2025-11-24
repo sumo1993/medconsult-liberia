@@ -1,0 +1,4 @@
+Build Version: 2024-11-24-21:07
+Force cache invalidation for Vercel deployment
+Removed all blog-related TypeScript files
+Health resources now at /health-resources route
