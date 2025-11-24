@@ -87,16 +87,37 @@ export async function getHealthNews(): Promise<HealthNewsData> {
   }
 
   try {
-    // Fetch from API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/health-news`, {
-      next: { revalidate: 3600 } // Revalidate every hour
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch health news');
-    }
-
-    const data = await response.json();
+    // For server-side rendering, directly call the health news logic instead of making HTTP request
+    const healthNewsData = await fetchExternalHealthNews();
+    
+    const data = {
+      outbreakAlerts: [
+        {
+          id: 13,
+          title: 'URGENT: HIV Crisis in Liberia - Get Tested Now',
+          excerpt: 'Ministry of Health announces critical HIV situation. Free testing and treatment available nationwide.',
+          category: 'Health Crisis',
+          author: 'Ministry of Health',
+          date: new Date().toISOString(),
+          severity: 'high' as const,
+          isActive: true,
+          source: 'Ministry of Health Liberia'
+        },
+        {
+          id: 14,
+          title: 'Monkeypox Outbreak Alert: Prevention and Symptoms',
+          excerpt: 'Confirmed monkeypox cases in Liberia. Learn how to protect yourself and recognize symptoms.',
+          category: 'Disease Outbreak',
+          author: 'MedConsult Health Team',
+          date: new Date().toISOString(),
+          severity: 'high' as const,
+          isActive: true,
+          source: 'WHO Africa'
+        },
+      ],
+      latestNews: healthNewsData.latestNews || [],
+      lastUpdated: new Date().toISOString()
+    };
     
     // Update cache
     cachedData = data;
@@ -244,26 +265,64 @@ function getFallbackHealthNews(): HealthNewsData {
 export async function fetchExternalHealthNews(): Promise<Partial<HealthNewsData>> {
   const sources: NewsItem[] = [];
 
-  // TODO: Implement actual API calls to:
-  // 1. WHO Disease Outbreak News: https://www.who.int/feeds/entity/csr/don/en/rss.xml
-  // 2. Liberia Ministry of Health
-  // 3. News APIs (NewsAPI, Google News)
-  // 4. Health data aggregators
-
-  // Example structure for WHO RSS feed integration:
-  /*
   try {
-    const whoResponse = await fetch('https://www.who.int/feeds/entity/csr/don/en/rss.xml');
-    const whoXml = await whoResponse.text();
-    const whoNews = parseWHORSS(whoXml);
-    sources.push(...whoNews);
-  } catch (error) {
-    console.error('Error fetching WHO news:', error);
-  }
-  */
+    const apiKey = process.env.NEWS_API_KEY;
+    
+    if (!apiKey) {
+      console.log('NEWS_API_KEY not configured, using fallback data');
+      return {
+        outbreakAlerts: [],
+        latestNews: []
+      };
+    }
 
-  return {
-    outbreakAlerts: [],
-    latestNews: sources
-  };
+    // Fetch health-related news from NewsAPI
+    const response = await fetch(
+      `https://newsapi.org/v2/everything?q=(health OR medical OR healthcare OR medicine OR disease OR treatment OR vaccine OR hospital OR WHO OR "public health") AND -sports&language=en&sortBy=publishedAt&pageSize=8&apiKey=${apiKey}`,
+      {
+        headers: {
+          'User-Agent': 'MedConsult-Liberia/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`NewsAPI error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Filter and format the articles
+    const healthNews = data.articles
+      .filter((article: any) => 
+        article.title && 
+        article.description && 
+        article.urlToImage &&
+        !article.title.includes('[Removed]') &&
+        !article.description.includes('[Removed]') &&
+        article.description.length > 50
+      )
+      .map((article: any, index: number) => ({
+        id: 100 + index, // Start from 100 to avoid conflicts
+        title: article.title,
+        excerpt: article.description,
+        category: 'Global Health',
+        author: article.source.name,
+        date: article.publishedAt,
+        source: article.source.name
+      }));
+
+    console.log(`Fetched ${healthNews.length} health news articles from NewsAPI`);
+    
+    return {
+      outbreakAlerts: [],
+      latestNews: healthNews
+    };
+  } catch (error) {
+    console.error('Error fetching from NewsAPI:', error);
+    return {
+      outbreakAlerts: [],
+      latestNews: []
+    };
+  }
 }

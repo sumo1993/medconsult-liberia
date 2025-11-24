@@ -24,6 +24,10 @@
  * - Custom health data aggregators
  */
 
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Calendar, User, ArrowRight, BookOpen, ExternalLink, Database, TrendingUp, AlertTriangle, Shield, Globe, Newspaper, Heart, RefreshCw } from 'lucide-react';
