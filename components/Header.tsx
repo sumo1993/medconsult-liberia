@@ -15,7 +15,7 @@ export default function Header() {
     { href: '/our-team', label: 'Our Team' },
     { href: '/partnerships', label: 'Partnerships' },
     { href: '/research', label: 'Research' },
-    { href: '/blog', label: 'Blog' },
+    { href: '/health-resources', label: 'Health Resources' },
     { href: '/testimonials', label: 'Testimonials' },
     { href: '/#contact', label: 'Contact' },
   ];

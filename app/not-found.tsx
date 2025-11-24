@@ -62,10 +62,10 @@ export default function NotFound() {
               Research
             </button>
             <button
-              onClick={() => router.push('/blog')}
+              onClick={() => router.push('/health-resources')}
               className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-emerald-50 text-sm font-medium shadow-sm"
             >
-              Blog
+              Health Resources
             </button>
             <button
               onClick={() => router.push('/login')}

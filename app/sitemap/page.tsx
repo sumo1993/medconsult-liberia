@@ -24,7 +24,7 @@ export default function SitemapPage() {
       icon: BookOpen,
       links: [
         { name: 'Research Library', path: '/research' },
-        { name: 'Blog & News', path: '/blog' },
+        { name: 'Health Resources', path: '/health-resources' },
         { name: 'Testimonials', path: '/testimonials' },
         { name: 'Partnerships', path: '/partnerships' },
       ]
