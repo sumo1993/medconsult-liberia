@@ -40,7 +40,11 @@ export default function DoctorsPage() {
       const response = await fetch('/api/doctors/public');
       if (response.ok) {
         const data = await response.json();
-        setDoctors(data.doctors);
+        // Filter to only show lead consultant (not System Administrator)
+        const filteredDoctors = data.doctors.filter((doc: Doctor) => 
+          doc.status !== 'System Administrator' && doc.status !== 'Medical Professional'
+        );
+        setDoctors(filteredDoctors);
       }
     } catch (error) {
       console.error('Error fetching doctors:', error);
@@ -72,9 +76,9 @@ export default function DoctorsPage() {
               <ArrowLeft size={24} />
             </button>
             <div>
-              <h1 className="text-4xl font-bold">Our Doctors</h1>
+              <h1 className="text-4xl font-bold">Meet Our Lead Consultant</h1>
               <p className="text-emerald-100 mt-2 text-lg">
-                Meet our experienced medical professionals dedicated to your health
+                Expert medical consultation services dedicated to your health
               </p>
             </div>
           </div>
@@ -172,7 +176,7 @@ export default function DoctorsPage() {
                     <div className="bg-emerald-50 rounded-lg p-4 mb-4">
                       <h4 className="text-sm font-bold text-emerald-900 mb-2 flex items-center">
                         <BookOpen size={16} className="mr-2" />
-                        About Dr. {doctor.full_name?.split(' ')[0]}
+                        About {doctor.full_name?.split(' ')[0]}
                       </h4>
                       <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
                         {doctor.about_text}
@@ -238,7 +242,7 @@ export default function DoctorsPage() {
             {/* Modal Content */}
             <div className="p-8">
               <h3 className="text-2xl font-bold text-emerald-700 mb-4">
-                About Dr. {selectedDoctor.full_name?.split(' ')[0]}
+                About {selectedDoctor.full_name?.split(' ')[0]}
               </h3>
               
               <div className="prose max-w-none">
@@ -304,7 +308,7 @@ export default function DoctorsPage() {
                   className="px-8 py-3 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-semibold shadow-lg flex items-center space-x-2"
                 >
                   <Mail size={20} />
-                  <span>Contact Dr. {selectedDoctor.full_name?.split(' ')[0]}</span>
+                  <span>Contact {selectedDoctor.full_name?.split(' ')[0]}</span>
                 </button>
               </div>
             </div>
