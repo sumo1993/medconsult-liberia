@@ -94,7 +94,7 @@ export default function TeamPage() {
                       )}
 
                       {member.bio && (
-                        <p className="text-gray-700 mb-4 leading-relaxed text-center">
+                        <p className="text-gray-700 mb-4 leading-relaxed" style={{ textAlign: 'justify' }}>
                           {member.bio}
                         </p>
                       )}
