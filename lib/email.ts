@@ -15,7 +15,7 @@ export async function sendPasswordResetEmail(
   fullName: string,
   resetToken: string
 ) {
-  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://medconsult-liberianew.vercel.app'}/reset-password?token=${resetToken}`;
 
   try {
     await transporter.sendMail({
