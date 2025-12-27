@@ -37,6 +37,22 @@ interface AssignmentRequest {
   final_submission_notes: string | null;
   client_review_status: string | null;
   client_review_notes: string | null;
+  consultant_id: number | null;
+  consultant_name: string | null;
+}
+
+interface Consultant {
+  id: number;
+  full_name: string;
+  email: string;
+  specialty: string | null;
+}
+
+interface ReplyTo {
+  id: number;
+  message: string;
+  sender_name: string;
+  attachment_filename?: string;
 }
 
 interface Message {
@@ -49,6 +65,8 @@ interface Message {
   has_attachment: boolean;
   attachment_filename?: string;
   attachment_type?: string;
+  reactions?: Record<string, number[]>;
+  reply_to?: ReplyTo | null;
 }
 
 export default function DoctorAssignmentDetailPage() {
@@ -58,6 +76,7 @@ export default function DoctorAssignmentDetailPage() {
   const [request, setRequest] = useState<AssignmentRequest | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   
@@ -76,8 +95,13 @@ export default function DoctorAssignmentDetailPage() {
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [viewerFile, setViewerFile] = useState<{url: string; filename: string; type: string} | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
   const messageFileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Reaction emojis
+  const reactionEmojis = ['❤️', '👍', '👎', '😂', '😮', '😢', '🙏'];
 
   // Work submission
   const [workFile, setWorkFile] = useState<File | null>(null);
@@ -91,13 +115,65 @@ export default function DoctorAssignmentDetailPage() {
   const [uploadingFinal, setUploadingFinal] = useState(false);
   const finalFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Consultant assignment
+  const [consultants, setConsultants] = useState<Consultant[]>([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedConsultant, setSelectedConsultant] = useState<number | null>(null);
+  const [assigningConsultant, setAssigningConsultant] = useState(false);
+
+  // Consultant applications
+  interface Application {
+    id: number;
+    consultant_id: number;
+    consultant_name: string;
+    consultant_email: string;
+    message: string;
+    status: string;
+    created_at: string;
+  }
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [processingApplication, setProcessingApplication] = useState<number | null>(null);
+
   // Professional emojis for business communication
   const professionalEmojis = ['👍', '👏', '✅', '📄', '📊', '💼', '🎯', '⭐', '🔔', '📌', '✏️', '📝', '🙏', '💡', '🚀', '⏰', '📅', '✔️'];
 
   useEffect(() => {
-    if (params.id) {
+    // Check user role and redirect consultants to their own page
+    const checkRoleAndLoad = async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        const response = await fetch('/api/profile', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.role);
+          
+          // Redirect consultants to their own assignment page
+          if (data.role === 'consultant') {
+            router.replace(`/dashboard/consultant/assignments/${params.id}`);
+            return;
+          }
+          
+          // Redirect clients to their own assignment page
+          if (data.role === 'client') {
+            router.replace(`/dashboard/client/assignments/${params.id}`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking role:', error);
+      }
+
+      // Only load data if user is management/admin
       fetchRequest();
       fetchMessages();
+      fetchConsultants();
+      fetchApplications();
+    };
+
+    if (params.id) {
+      checkRoleAndLoad();
       
       // Auto-refresh messages every 5 seconds
       const interval = setInterval(() => {
@@ -106,7 +182,106 @@ export default function DoctorAssignmentDetailPage() {
       
       return () => clearInterval(interval);
     }
-  }, [params.id]);
+  }, [params.id, router]);
+
+  const fetchConsultants = async () => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-requests/${params.id}/assign`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setConsultants(data.consultants || []);
+      }
+    } catch (error) {
+      console.error('Error fetching consultants:', error);
+    }
+  };
+
+  const fetchApplications = async () => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-applications?assignmentId=${params.id}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.applications || []);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
+
+  const handleApplicationAction = async (applicationId: number, action: 'approve' | 'reject') => {
+    setProcessingApplication(applicationId);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-applications/${applicationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      
+      if (response.ok || data.success) {
+        showNotification('success', data.message || `Application ${action}d successfully`);
+        fetchApplications();
+        fetchRequest();
+        fetchMessages();
+      } else {
+        console.error('Application action error:', data);
+        showNotification('error', data.error || 'Failed to process application');
+      }
+    } catch (error) {
+      console.error('Application action network error:', error);
+      showNotification('error', 'Network error - please try again');
+    } finally {
+      setProcessingApplication(null);
+    }
+  };
+
+  const handleAssignConsultant = async () => {
+    if (!selectedConsultant) {
+      showNotification('error', 'Please select a consultant');
+      return;
+    }
+
+    setAssigningConsultant(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-requests/${params.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ consultantId: selectedConsultant }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showNotification('success', data.message || 'Consultant assigned successfully!');
+        setShowAssignModal(false);
+        setSelectedConsultant(null);
+        fetchRequest();
+        fetchMessages();
+      } else {
+        const error = await response.json();
+        showNotification('error', error.error || 'Failed to assign consultant');
+      }
+    } catch (error) {
+      showNotification('error', 'Network error');
+    } finally {
+      setAssigningConsultant(false);
+    }
+  };
 
   // Auto-scroll to bottom only when new messages are added
   const prevMessageCountRef = useRef(messages.length);
@@ -347,12 +522,14 @@ export default function DoctorAssignmentDetailPage() {
           message: newMessage,
           attachment: attachmentData,
           filename,
+          replyToId: replyingTo?.id || null,
         }),
       });
 
       if (response.ok) {
         setNewMessage('');
         setMessageFile(null);
+        setReplyingTo(null);
         fetchMessages();
         showNotification('success', 'Message sent!');
       } else {
@@ -363,6 +540,39 @@ export default function DoctorAssignmentDetailPage() {
     } finally {
       setSendingMessage(false);
     }
+  };
+
+  const handleReaction = async (messageId: number, emoji: string) => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-requests/${params.id}/messages`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          messageId,
+          emoji,
+        }),
+      });
+
+      if (response.ok) {
+        fetchMessages();
+        setShowReactionPicker(null);
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  };
+
+  const handleReply = (msg: Message) => {
+    setReplyingTo(msg);
+    setShowReactionPicker(null);
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
   };
 
   const insertEmoji = (emoji: string) => {
@@ -532,6 +742,18 @@ export default function DoctorAssignmentDetailPage() {
   }
 
   if (!request) {
+    // If still checking role or redirecting, show loading
+    if (userRole === 'consultant' || userRole === 'client' || userRole === null) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Redirecting...</p>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -1013,45 +1235,116 @@ export default function DoctorAssignmentDetailPage() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((msg) => (
-                      <div key={msg.id} className={`flex mb-4 ${
-                        msg.sender_role === 'management' || msg.sender_role === 'admin' ? 'justify-end' : 'justify-start'
-                      }`}>
-                        <div className={`max-w-[75%] ${
-                          msg.sender_role === 'management' || msg.sender_role === 'admin'
-                            ? 'bg-emerald-500 text-white rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl' 
-                            : 'bg-white text-gray-900 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm'
-                        } px-4 py-3`}>
-                          {msg.sender_role !== 'management' && msg.sender_role !== 'admin' && (
-                            <p className="text-xs font-semibold text-blue-600 mb-1">{msg.sender_name}</p>
-                          )}
-                          {msg.message && (
-                            <p className={`text-sm whitespace-pre-wrap break-words ${
-                              msg.sender_role === 'management' || msg.sender_role === 'admin' ? 'text-white' : 'text-gray-800'
-                            }`}>{msg.message}</p>
-                          )}
-                          {msg.has_attachment && (
-                            <button
-                              onClick={() => handleViewAttachment(msg.id, msg.attachment_filename || 'file', msg.attachment_type || '')}
-                              className={`flex items-center space-x-2 mt-2 px-3 py-2 rounded-lg text-sm ${
-                                msg.sender_role === 'management' || msg.sender_role === 'admin'
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
-                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                              }`}
-                            >
-                              <Paperclip size={14} />
-                              <span className="font-medium">{msg.attachment_filename}</span>
-                              <Download size={12} />
-                            </button>
-                          )}
-                          <p className={`text-xs mt-1 ${
-                            msg.sender_role === 'management' || msg.sender_role === 'admin' ? 'text-emerald-100' : 'text-gray-500'
-                          }`}>
-                            {formatMessageTime(msg.created_at)}
-                          </p>
+                    {messages.map((msg) => {
+                      const isOwnMessage = msg.sender_role === 'management' || msg.sender_role === 'admin';
+                      return (
+                        <div key={msg.id} className={`flex mb-4 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                          <div className="relative group max-w-[75%]">
+                            {/* Reply Preview */}
+                            {msg.reply_to && (
+                              <div className={`mb-1 px-3 py-2 rounded-lg text-xs ${
+                                isOwnMessage 
+                                  ? 'bg-emerald-600/30 text-emerald-100' 
+                                  : 'bg-gray-200 text-gray-600'
+                              }`}>
+                                <p className="font-semibold">{msg.reply_to.sender_name}</p>
+                                <p className="truncate opacity-80">
+                                  {msg.reply_to.attachment_filename ? `📎 ${msg.reply_to.attachment_filename}` : msg.reply_to.message}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Message Bubble */}
+                            <div className={`${
+                              isOwnMessage
+                                ? 'bg-emerald-500 text-white rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl' 
+                                : 'bg-white text-gray-900 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm'
+                            } px-4 py-3`}>
+                              {!isOwnMessage && (
+                                <p className="text-xs font-semibold text-blue-600 mb-1">{msg.sender_name}</p>
+                              )}
+                              {msg.message && (
+                                <p className={`text-sm whitespace-pre-wrap break-words ${
+                                  isOwnMessage ? 'text-white' : 'text-gray-800'
+                                }`}>{msg.message}</p>
+                              )}
+                              {msg.has_attachment && (
+                                <button
+                                  onClick={() => handleViewAttachment(msg.id, msg.attachment_filename || 'file', msg.attachment_type || '')}
+                                  className={`flex items-center space-x-2 mt-2 px-3 py-2 rounded-lg text-sm ${
+                                    isOwnMessage
+                                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
+                                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                  }`}
+                                >
+                                  <Paperclip size={14} />
+                                  <span className="font-medium">{msg.attachment_filename}</span>
+                                  <Download size={12} />
+                                </button>
+                              )}
+                              <p className={`text-xs mt-1 ${isOwnMessage ? 'text-emerald-100' : 'text-gray-500'}`}>
+                                {formatMessageTime(msg.created_at)}
+                              </p>
+                            </div>
+
+                            {/* Reactions Display */}
+                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                              <div className={`flex flex-wrap gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                                {Object.entries(msg.reactions).map(([emoji, users]) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg.id, emoji)}
+                                    className="flex items-center gap-1 px-2 py-0.5 bg-white rounded-full shadow-sm border text-xs hover:bg-gray-50"
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className="text-gray-600">{users.length}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Action Buttons (show on hover) */}
+                            <div className={`absolute top-0 ${isOwnMessage ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2'} 
+                              hidden group-hover:flex items-center gap-1`}>
+                              {/* Reaction Button */}
+                              <button
+                                onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
+                                className="p-1.5 bg-white rounded-full shadow hover:bg-gray-100 text-gray-600"
+                                title="Add reaction"
+                              >
+                                <Smile size={14} />
+                              </button>
+                              {/* Reply Button */}
+                              <button
+                                onClick={() => handleReply(msg)}
+                                className="p-1.5 bg-white rounded-full shadow hover:bg-gray-100 text-gray-600"
+                                title="Reply"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 10l8-8v5c13 0 13 10 13 10s-2-5-13-5v5l-8-7z"/>
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Reaction Picker Popup */}
+                            {showReactionPicker === msg.id && (
+                              <div className={`absolute z-10 ${isOwnMessage ? 'right-0' : 'left-0'} -top-10 
+                                bg-white rounded-full shadow-lg border px-2 py-1 flex gap-1`}>
+                                {reactionEmojis.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg.id, emoji)}
+                                    className="text-xl hover:scale-125 transition-transform p-1"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </>
                 )}
@@ -1059,6 +1352,24 @@ export default function DoctorAssignmentDetailPage() {
 
               {/* Message Input - WhatsApp Style */}
               <div className="bg-white border-t p-4">
+                {/* Reply Preview */}
+                {replyingTo && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 rounded-lg mb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-emerald-700">Replying to {replyingTo.sender_name}</p>
+                      <p className="text-sm text-gray-600 truncate">
+                        {replyingTo.has_attachment ? `📎 ${replyingTo.attachment_filename}` : replyingTo.message}
+                      </p>
+                    </div>
+                    <button
+                      onClick={cancelReply}
+                      className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded ml-2"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
+
                 {messageFile && (
                   <div className="flex items-center space-x-2 px-3 py-2 bg-emerald-50 rounded-lg mb-3 border border-emerald-200">
                     <Paperclip size={16} className="text-emerald-600" />
@@ -1152,6 +1463,72 @@ export default function DoctorAssignmentDetailPage() {
 
           {/* Right Column - Quick Actions */}
           <div className="space-y-6">
+            {/* Consultant Applications */}
+            {applications.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  📋 Consultant Applications
+                  <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">
+                    {applications.filter(a => a.status === 'pending').length} pending
+                  </span>
+                </h3>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {applications.map((app) => (
+                    <div 
+                      key={app.id} 
+                      className={`p-3 rounded-lg ${
+                        app.status === 'pending' 
+                          ? 'bg-yellow-50 border border-yellow-200' 
+                          : app.status === 'approved'
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-semibold text-gray-900">{app.consultant_name}</p>
+                          <p className="text-xs text-gray-600">{app.consultant_email}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          app.status === 'pending' 
+                            ? 'bg-yellow-100 text-yellow-700' 
+                            : app.status === 'approved'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {app.status}
+                        </span>
+                      </div>
+                      {app.message && (
+                        <p className="text-sm text-gray-600 mb-2 italic">"{app.message}"</p>
+                      )}
+                      <p className="text-xs text-gray-500 mb-2">
+                        Applied: {new Date(app.created_at).toLocaleDateString()}
+                      </p>
+                      {app.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApplicationAction(app.id, 'approve')}
+                            disabled={processingApplication === app.id}
+                            className="flex-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {processingApplication === app.id ? '...' : '✓ Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleApplicationAction(app.id, 'reject')}
+                            disabled={processingApplication === app.id}
+                            className="flex-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {processingApplication === app.id ? '...' : '✗ Reject'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
@@ -1201,7 +1578,25 @@ export default function DoctorAssignmentDetailPage() {
                     View Receipt
                   </button>
                 )}
+
+                {/* Assign to Consultant Button - Available for most statuses except completed */}
+                {request.status !== 'completed' && (
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    {request.consultant_id ? 'Reassign Consultant' : 'Assign to Consultant'}
+                  </button>
+                )}
               </div>
+
+              {/* Current Consultant Info */}
+              {request.consultant_name && (
+                <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                  <p className="text-xs text-purple-600 font-semibold mb-1">Assigned Consultant</p>
+                  <p className="text-sm font-medium text-purple-900">{request.consultant_name}</p>
+                </div>
+              )}
             </div>
 
             {/* Status Timeline */}
@@ -1268,7 +1663,7 @@ export default function DoctorAssignmentDetailPage() {
 
       {/* Styled Confirmation Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in">
             {/* Header */}
             <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
@@ -1393,6 +1788,80 @@ export default function DoctorAssignmentDetailPage() {
           fileType={viewerFile.type}
           onClose={() => setShowFileViewer(false)}
         />
+      )}
+
+      {/* Assign Consultant Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-scale-in">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4 rounded-t-xl">
+              <h3 className="text-lg font-bold">Assign to Consultant</h3>
+              <p className="text-purple-100 text-sm">Select a consultant to work on this assignment</p>
+            </div>
+            
+            <div className="p-6">
+              {consultants.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No consultants available</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {consultants.map((consultant) => (
+                    <label
+                      key={consultant.id}
+                      className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedConsultant === consultant.id
+                          ? 'bg-purple-100 border-2 border-purple-500'
+                          : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="consultant"
+                        value={consultant.id}
+                        checked={selectedConsultant === consultant.id}
+                        onChange={() => setSelectedConsultant(consultant.id)}
+                        className="sr-only"
+                      />
+                      <div className="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center font-semibold mr-3">
+                        {consultant.full_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{consultant.full_name}</p>
+                        <p className="text-sm text-gray-600">{consultant.email}</p>
+                        {consultant.specialty && (
+                          <p className="text-xs text-purple-600">{consultant.specialty}</p>
+                        )}
+                      </div>
+                      {selectedConsultant === consultant.id && (
+                        <CheckCircle className="text-purple-600" size={20} />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 flex space-x-3 rounded-b-xl">
+              <button
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setSelectedConsultant(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignConsultant}
+                disabled={!selectedConsultant || assigningConsultant}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              >
+                {assigningConsultant ? 'Assigning...' : 'Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

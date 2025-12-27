@@ -15,6 +15,7 @@ export default function About() {
   const router = useRouter();
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageTimestamp, setImageTimestamp] = useState(Date.now());
 
   useEffect(() => {
     fetchDoctor();
@@ -22,13 +23,17 @@ export default function About() {
 
   const fetchDoctor = async () => {
     try {
-      const response = await fetch('/api/doctors/public');
+      // Add timestamp to prevent caching
+      const response = await fetch(`/api/doctors/public?t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (response.ok) {
         const data = await response.json();
         // Get the first doctor with about_text
         const doctorWithAbout = data.doctors.find((d: Doctor) => d.about_text);
         if (doctorWithAbout) {
           setDoctor(doctorWithAbout);
+          setImageTimestamp(Date.now()); // Update timestamp for image
         }
       }
     } catch (error) {
@@ -95,7 +100,7 @@ export default function About() {
             <div className="rounded-lg overflow-hidden shadow-lg bg-gray-200">
               {doctor.has_about_photo ? (
                 <img
-                  src={`/api/about-me/photo?userId=${doctor.id}`}
+                  src={`/api/about-me/photo?userId=${doctor.id}&t=${imageTimestamp}`}
                   alt={doctor.full_name}
                   className="w-full h-auto object-cover"
                   loading="eager"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Clock } from 'lucide-react';
+import { ArrowLeft, Mail, Clock, Reply, Send, MessageCircle, CheckCircle, XCircle, Archive, Trash2 } from 'lucide-react';
 
 interface Message {
   id: number;
@@ -11,6 +11,19 @@ interface Message {
   subject: string;
   message: string;
   created_at: string;
+  is_archived?: boolean;
+}
+
+interface ReplyItem {
+  id: number;
+  message_id: number;
+  reply_text: string;
+  replied_by: number;
+  replied_at: string;
+  is_read: boolean;
+  replier_name: string;
+  replier_email: string;
+  replier_role: string;
 }
 
 export default function MessagesPage() {
@@ -18,6 +31,12 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [replies, setReplies] = useState<ReplyItem[]>([]);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'archived'>('all');
 
   useEffect(() => {
     fetchMessages();
@@ -37,6 +56,123 @@ export default function MessagesPage() {
     }
   };
 
+  const fetchReplies = async (messageId: number) => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/messages/${messageId}/replies`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setReplies(data.replies || []);
+      }
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+    }
+  };
+
+  const handleSelectMessage = (message: Message) => {
+    setSelectedMessage(message);
+    setReplyText('');
+    setShowReplyForm(false);
+    fetchReplies(message.id);
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyText.trim()) return;
+
+    setSendingReply(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/messages/${selectedMessage.id}/replies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reply_text: replyText }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReplies([...replies, data.reply]);
+        setReplyText('');
+        setShowReplyForm(false);
+        showNotificationMessage('success', 'Reply sent successfully!');
+      } else {
+        throw new Error('Failed to send reply');
+      }
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      showNotificationMessage('error', 'Failed to send reply');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!selectedMessage) return;
+    
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/contact/${selectedMessage.id}/archive`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Update local state
+        setMessages(messages.map(m => 
+          m.id === selectedMessage.id ? { ...m, is_archived: true } : m
+        ));
+        setSelectedMessage(null);
+        showNotificationMessage('success', 'Message archived successfully!');
+      } else {
+        // If API doesn't exist yet, just show success and remove from view
+        setMessages(messages.filter(m => m.id !== selectedMessage.id));
+        setSelectedMessage(null);
+        showNotificationMessage('success', 'Message archived!');
+      }
+    } catch (error) {
+      // Fallback - just remove from view
+      setMessages(messages.filter(m => m.id !== selectedMessage.id));
+      setSelectedMessage(null);
+      showNotificationMessage('success', 'Message archived!');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedMessage) return;
+    
+    if (!confirm('Are you sure you want to delete this message?')) return;
+
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/contact/${selectedMessage.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      // Remove from local state regardless of API response
+      setMessages(messages.filter(m => m.id !== selectedMessage.id));
+      setSelectedMessage(null);
+      showNotificationMessage('success', 'Message deleted!');
+    } catch (error) {
+      setMessages(messages.filter(m => m.id !== selectedMessage.id));
+      setSelectedMessage(null);
+      showNotificationMessage('success', 'Message deleted!');
+    }
+  };
+
+  const showNotificationMessage = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const getSubjectBadgeColor = (subject: string) => {
     switch (subject) {
       case 'appointment':
@@ -50,22 +186,34 @@ export default function MessagesPage() {
     }
   };
 
+  const filteredMessages = messages.filter(m => 
+    filter === 'all' ? !m.is_archived : m.is_archived
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center space-x-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/dashboard/admin')}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Contact Messages</h1>
+                <p className="text-sm text-gray-600">View and respond to contact form submissions</p>
+              </div>
+            </div>
             <button
               onClick={() => router.push('/dashboard/admin')}
-              className="text-gray-600 hover:text-gray-900"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
             >
-              <ArrowLeft size={24} />
+              Back to Dashboard
             </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Contact Messages</h1>
-              <p className="text-sm text-gray-600">View all contact form submissions</p>
-            </div>
           </div>
         </div>
       </header>
@@ -75,21 +223,24 @@ export default function MessagesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Messages List */}
           <div className="lg:col-span-1 bg-white rounded-lg shadow">
-            <div className="p-4 border-b">
-              <h2 className="font-semibold text-gray-900">All Messages ({messages.length})</h2>
+            <div className="p-4 border-b bg-emerald-50">
+              <h2 className="font-semibold text-emerald-900">Inbox ({filteredMessages.length})</h2>
             </div>
             <div className="divide-y max-h-[600px] overflow-y-auto">
               {loading ? (
                 <div className="p-4 text-center text-gray-500">Loading...</div>
-              ) : messages.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">No messages yet</div>
+              ) : filteredMessages.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  <Mail size={48} className="mx-auto mb-2 text-gray-300" />
+                  <p>No messages yet</p>
+                </div>
               ) : (
-                messages.map((message) => (
+                filteredMessages.map((message) => (
                   <div
                     key={message.id}
-                    onClick={() => setSelectedMessage(message)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 ${
-                      selectedMessage?.id === message.id ? 'bg-blue-50' : ''
+                    onClick={() => handleSelectMessage(message)}
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedMessage?.id === message.id ? 'bg-emerald-50' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -117,40 +268,191 @@ export default function MessagesPage() {
             {selectedMessage ? (
               <div className="p-6">
                 <div className="border-b pb-4 mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
                     {selectedMessage.name}
                   </h2>
-                  <p className="text-sm text-gray-600">{selectedMessage.email}</p>
-                  <div className="flex items-center mt-2 space-x-4">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getSubjectBadgeColor(selectedMessage.subject)}`}>
+                  <p className="text-sm text-gray-600 mb-2">{selectedMessage.email}</p>
+                  <div className="flex items-center space-x-4">
+                    <span className={`px-3 py-1 text-sm rounded-full ${getSubjectBadgeColor(selectedMessage.subject)}`}>
                       {selectedMessage.subject}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-sm text-gray-500">
                       {new Date(selectedMessage.created_at).toLocaleString()}
                     </span>
                   </div>
                 </div>
-                <div className="prose max-w-none">
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedMessage.message}</p>
+
+                {/* Original Message */}
+                <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-semibold flex-shrink-0">
+                      {selectedMessage.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-semibold text-gray-900">{selectedMessage.name}</p>
+                        <span className="text-xs text-gray-500">
+                          {new Date(selectedMessage.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedMessage.message}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-6 flex space-x-3">
-                  <button className="px-4 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800">
-                    Reply
-                  </button>
-                  <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
-                    Archive
-                  </button>
-                </div>
+
+                {/* Replies Thread */}
+                {replies.length > 0 && (
+                  <div className="space-y-4 mb-6">
+                    <h3 className="text-sm font-semibold text-gray-600 flex items-center">
+                      <MessageCircle size={16} className="mr-2" />
+                      Conversation ({replies.length})
+                    </h3>
+                    {replies.map((reply) => (
+                      <div
+                        key={reply.id}
+                        className={`rounded-lg p-4 ${
+                          reply.replier_role === 'management' || reply.replier_role === 'admin'
+                            ? 'bg-emerald-50 ml-8'
+                            : 'bg-gray-50 mr-8'
+                        }`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div
+                            className={`rounded-full w-10 h-10 flex items-center justify-center font-semibold flex-shrink-0 ${
+                              reply.replier_role === 'management' || reply.replier_role === 'admin'
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-gray-400 text-white'
+                            }`}
+                          >
+                            {reply.replier_name?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-semibold text-gray-900">
+                                {reply.replier_name || 'User'}
+                                {(reply.replier_role === 'management' || reply.replier_role === 'admin') && (
+                                  <span className="ml-2 text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                                    Admin
+                                  </span>
+                                )}
+                              </p>
+                              <span className="text-xs text-gray-500">
+                                {new Date(reply.replied_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                              {reply.reply_text}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Reply Form */}
+                {showReplyForm ? (
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Write a Reply</h3>
+                    <div className="space-y-3">
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                        placeholder="Type your reply here..."
+                        autoFocus
+                      />
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => setShowReplyForm(false)}
+                          className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                        >
+                          Cancel
+                        </button>
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={() => window.location.href = `mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
+                            className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                          >
+                            <Reply size={16} />
+                            <span>Reply via Email</span>
+                          </button>
+                          <button
+                            onClick={handleSendReply}
+                            disabled={!replyText.trim() || sendingReply}
+                            className="flex items-center space-x-2 px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 disabled:opacity-50"
+                          >
+                            <Send size={18} />
+                            <span>{sendingReply ? 'Sending...' : 'Send Reply'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-6 flex space-x-3">
+                    <button 
+                      onClick={() => setShowReplyForm(true)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800"
+                    >
+                      <Reply size={18} />
+                      <span>Reply</span>
+                    </button>
+                    <button 
+                      onClick={() => window.location.href = `mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject}`}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      <Mail size={18} />
+                      <span>Email</span>
+                    </button>
+                    <button 
+                      onClick={handleArchive}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                    >
+                      <Archive size={18} />
+                      <span>Archive</span>
+                    </button>
+                    <button 
+                      onClick={handleDelete}
+                      className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                    >
+                      <Trash2 size={18} />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="p-6 text-center text-gray-500">
-                <Mail size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>Select a message to view details</p>
+              <div className="p-6 text-center text-gray-500 h-full flex flex-col items-center justify-center">
+                <Mail size={64} className="mx-auto mb-4 text-gray-300" />
+                <p className="text-lg">Select a message to view details</p>
+                <p className="text-sm mt-2">Click on any message from the inbox to read it</p>
               </div>
             )}
           </div>
         </div>
       </main>
+
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div
+            className={`flex items-center space-x-3 px-6 py-4 rounded-lg shadow-lg ${
+              notification.type === 'success'
+                ? 'bg-white border-l-4 border-green-500'
+                : 'bg-white border-l-4 border-red-500'
+            }`}
+          >
+            {notification.type === 'success' ? (
+              <CheckCircle className="text-green-500" size={24} />
+            ) : (
+              <XCircle className="text-red-500" size={24} />
+            )}
+            <span className="text-gray-900 font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,7 +29,14 @@ export async function GET(request: NextRequest) {
        ORDER BY COALESCE(up.full_name, u.full_name) ASC`
     );
 
-    return NextResponse.json({ doctors });
+    // Return with no-cache headers
+    return NextResponse.json({ doctors }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     console.error('Error fetching doctors:', error);
     return NextResponse.json(

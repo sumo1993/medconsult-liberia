@@ -207,6 +207,11 @@ export default function UsersPage() {
         updateData.password = formData.password;
       }
 
+      console.log('[Frontend] Updating user:', editingUser.id);
+      console.log('[Frontend] Current role:', editingUser.role);
+      console.log('[Frontend] New role:', formData.role);
+      console.log('[Frontend] Update data:', JSON.stringify(updateData));
+
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
@@ -217,10 +222,14 @@ export default function UsersPage() {
         credentials: 'include',
       });
 
+      const responseData = await response.json();
+      console.log('[Frontend] Response status:', response.status);
+      console.log('[Frontend] Response data:', JSON.stringify(responseData));
+
       if (response.ok) {
         setNotification({
           type: 'success',
-          message: 'User updated successfully!',
+          message: `User updated successfully! Role changed to: ${responseData.user?.role || formData.role}`,
         });
         setShowModal(false);
         setEditingUser(null);
@@ -234,10 +243,9 @@ export default function UsersPage() {
         fetchUsers();
         setTimeout(() => setNotification(null), 3000);
       } else {
-        const data = await response.json();
         setNotification({
           type: 'error',
-          message: data.error || 'Failed to update user',
+          message: responseData.error || 'Failed to update user',
         });
         setTimeout(() => setNotification(null), 5000);
       }
@@ -503,10 +511,10 @@ export default function UsersPage() {
 
       {/* Create User Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, rgba(209, 250, 229, 0.95) 50%, rgba(167, 243, 208, 0.9) 100%)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-emerald-100">
+            <div className="flex justify-between items-center p-6 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
+              <h2 className="text-xl font-bold text-emerald-800">
                 {editingUser ? 'Edit User' : 'Add New User'}
               </h2>
               <button
@@ -521,16 +529,16 @@ export default function UsersPage() {
                     phone: '',
                   });
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full p-1 transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="p-6 space-y-4">
+            <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="p-6 space-y-5">
               {/* Full Name */}
               <div>
-                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="full_name" className="block text-sm font-semibold text-emerald-800 mb-2">
                   Full Name *
                 </label>
                 <input
@@ -539,14 +547,14 @@ export default function UsersPage() {
                   required
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 placeholder-gray-400"
                   placeholder="John Doe"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-semibold text-emerald-800 mb-2">
                   Email Address *
                 </label>
                 <input
@@ -556,17 +564,20 @@ export default function UsersPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   disabled={!!editingUser}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 placeholder-gray-400 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
                   placeholder="user@example.com"
                 />
                 {editingUser && (
-                  <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
+                    <span className="inline-block w-1 h-1 bg-emerald-500 rounded-full"></span>
+                    Email cannot be changed
+                  </p>
                 )}
               </div>
 
               {/* Phone */}
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="phone" className="block text-sm font-semibold text-emerald-800 mb-2">
                   Phone Number
                 </label>
                 <input
@@ -574,14 +585,14 @@ export default function UsersPage() {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 placeholder-gray-400"
                   placeholder="+231-555-1234"
                 />
               </div>
 
               {/* Role */}
               <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="role" className="block text-sm font-semibold text-emerald-800 mb-2">
                   Role *
                 </label>
                 <select
@@ -589,7 +600,7 @@ export default function UsersPage() {
                   required
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 cursor-pointer"
                 >
                   <option value="client">Client</option>
                   <option value="researcher">Researcher</option>
@@ -602,7 +613,7 @@ export default function UsersPage() {
 
               {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="password" className="block text-sm font-semibold text-emerald-800 mb-2">
                   Password {!editingUser && '*'}
                 </label>
                 <input
@@ -612,27 +623,28 @@ export default function UsersPage() {
                   minLength={8}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 placeholder-gray-400"
                   placeholder={editingUser ? "Leave blank to keep current password" : "Min. 8 characters"}
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1.5 text-xs text-emerald-600 flex items-center gap-1">
+                  <span className="inline-block w-1 h-1 bg-emerald-500 rounded-full"></span>
                   {editingUser ? 'Leave blank to keep current password' : 'Minimum 8 characters'}
                 </p>
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end space-x-3 pt-4 border-t">
+              <div className="flex justify-end space-x-3 pt-5 border-t border-emerald-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                  className="px-5 py-2.5 bg-white text-emerald-700 border-2 border-emerald-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-300 transition-all font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800 disabled:opacity-50"
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 disabled:opacity-50 transition-all font-medium shadow-lg shadow-emerald-200"
                 >
                   {isSubmitting ? (editingUser ? 'Updating...' : 'Creating...') : (editingUser ? 'Update User' : 'Create User')}
                 </button>
@@ -694,8 +706,8 @@ export default function UsersPage() {
 
       {/* Lock/Unlock Confirmation Dialog */}
       {confirmDialog?.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, rgba(209, 250, 229, 0.95) 50%, rgba(167, 243, 208, 0.9) 100%)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all border border-emerald-100">
             <div className="text-center mb-6">
               <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
                 confirmDialog.action === 'lock' ? 'bg-orange-100' : 'bg-green-100'
@@ -739,8 +751,8 @@ export default function UsersPage() {
 
       {/* Delete Confirmation Dialog */}
       {deleteDialog?.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, rgba(209, 250, 229, 0.95) 50%, rgba(167, 243, 208, 0.9) 100%)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all border border-emerald-100">
             <div className="text-center mb-6">
               <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <Trash2 className="text-red-600" size={32} />

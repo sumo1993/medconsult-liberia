@@ -17,10 +17,12 @@ export async function PUT(
 
     const { id } = await context.params;
     const userId = parseInt(id);
-    console.log('Updating user ID:', userId);
     
-    const { full_name, role, password } = await request.json();
-    console.log('Update data:', { full_name, role, hasPassword: !!password });
+    const body = await request.json();
+    const { full_name, role, password } = body;
+    console.log('[API] Updating user ID:', userId);
+    console.log('[API] Request body:', JSON.stringify(body));
+    console.log('[API] Extracted data:', { full_name, role, hasPassword: !!password });
 
     // Validate required fields
     if (!full_name || !role) {
@@ -53,15 +55,24 @@ export async function PUT(
     queryParams.push(userId);
 
     // Update user
+    console.log('[API] Update query:', updateQuery);
+    console.log('[API] Query params:', queryParams.map((p, i) => i === queryParams.length - 1 ? `userId: ${p}` : p));
+    
     const [result] = await pool.execute<ResultSetHeader>(updateQuery, queryParams);
+    console.log('[API] Update result:', { affectedRows: result.affectedRows, changedRows: result.changedRows });
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Verify the update worked
+    const [updatedUser]: any = await pool.execute('SELECT id, full_name, role FROM users WHERE id = ?', [userId]);
+    console.log('[API] User after update:', updatedUser[0]);
+
     return NextResponse.json({
       success: true,
       message: 'User updated successfully',
+      user: updatedUser[0],
     });
   } catch (error) {
     console.error('Error updating user:', error);

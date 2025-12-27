@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, FileText, MessageSquare, Activity, Calendar, TrendingUp, DollarSign, Bell, Settings, Image as ImageIcon, Handshake, UserCog, Eye, EyeOff, X } from 'lucide-react';
+import { Users, FileText, MessageSquare, Activity, Calendar, TrendingUp, DollarSign, Bell, Settings, Image as ImageIcon, Handshake, UserCog, Eye, EyeOff, X, MessageSquareQuote } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationBadge from '@/components/NotificationBadge';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
+import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('admin');
   const { counts, loading: notifLoading, refresh } = useNotifications('admin');
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -197,6 +199,15 @@ export default function AdminDashboard() {
       link: '/dashboard/admin/logs',
     },
   ];
+
+  // Show loading while checking role
+  if (roleLoading || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -436,6 +447,13 @@ export default function AdminDashboard() {
               Hero
             </button>
             <button
+              onClick={() => router.push('/dashboard/admin/about-settings')}
+              className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
+            >
+              <Users size={16} className="inline mr-1 sm:mr-2" />
+              About
+            </button>
+            <button
               onClick={() => router.push('/dashboard/admin/statistics')}
               className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-pink-600 to-pink-700 text-white rounded-lg hover:from-pink-700 hover:to-pink-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
             >
@@ -455,6 +473,13 @@ export default function AdminDashboard() {
             >
               <UserCog size={16} className="inline mr-1 sm:mr-2" />
               Team
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/admin/testimonials')}
+              className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg hover:from-amber-700 hover:to-amber-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
+            >
+              <MessageSquareQuote size={16} className="inline mr-1 sm:mr-2" />
+              Testimonials
             </button>
           </div>
         </div>
@@ -476,7 +501,7 @@ export default function AdminDashboard() {
 
       {/* Password Change Requests Modal */}
       {showPasswordRequestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Password Change Requests</h2>

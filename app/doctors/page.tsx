@@ -109,13 +109,13 @@ export default function DoctorsPage() {
                 <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 h-56 flex items-center justify-center relative">
                   {doctor.has_about_photo ? (
                     <img
-                      src={`/api/about-me/photo?userId=${doctor.id}`}
+                      src={`/api/about-me/photo?userId=${doctor.id}&t=${Date.now()}`}
                       alt={doctor.full_name}
                       className="w-36 h-36 rounded-full border-4 border-white object-cover shadow-xl"
                     />
                   ) : doctor.has_profile_photo ? (
                     <img
-                      src={`/api/profile/photo?userId=${doctor.id}`}
+                      src={`/api/profile/photo?userId=${doctor.id}&t=${Date.now()}`}
                       alt={doctor.full_name}
                       className="w-36 h-36 rounded-full border-4 border-white object-cover shadow-xl"
                     />
@@ -214,14 +214,20 @@ export default function DoctorsPage() {
 
       {/* Full Biography Modal */}
       {showBioModal && selectedDoctor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-100/95 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-emerald-700 to-emerald-600 text-white p-6 flex items-center justify-between">
+            <div className="sticky top-0 bg-gradient-to-r from-emerald-700 to-emerald-600 text-white p-6 flex items-center justify-between rounded-t-xl">
               <div className="flex items-center space-x-4">
-                {selectedDoctor.has_photo ? (
+                {selectedDoctor.has_about_photo ? (
                   <img
-                    src={`/api/profile/photo?userId=${selectedDoctor.id}`}
+                    src={`/api/about-me/photo?userId=${selectedDoctor.id}&t=${Date.now()}`}
+                    alt={selectedDoctor.full_name}
+                    className="w-16 h-16 rounded-full border-2 border-white object-cover"
+                  />
+                ) : selectedDoctor.has_profile_photo ? (
+                  <img
+                    src={`/api/profile/photo?userId=${selectedDoctor.id}&t=${Date.now()}`}
                     alt={selectedDoctor.full_name}
                     className="w-16 h-16 rounded-full border-2 border-white object-cover"
                   />

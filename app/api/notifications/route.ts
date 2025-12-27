@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     if (user.role === 'admin' || user.role === 'management' || user.role === 'consultant' || user.role === 'researcher') {
       try {
         const [assignments] = await pool.execute<RowDataPacket[]>(
-          "SELECT COUNT(*) as count FROM assignments WHERE status = 'pending'"
+          "SELECT COUNT(*) as count FROM assignment_requests WHERE status = 'pending_review'"
         );
         counts.assignments = assignments[0].count;
       } catch (error) {

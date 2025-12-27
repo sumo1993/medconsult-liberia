@@ -12,9 +12,11 @@ import NotificationBadge from '@/components/NotificationBadge';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
+import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 
 export default function ConsultantDashboard() {
   const router = useRouter();
+  const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('consultant');
   const { counts, refresh } = useNotifications('consultant');
   
   const [stats, setStats] = useState({
@@ -105,6 +107,7 @@ export default function ConsultantDashboard() {
         setProfile({
           full_name: data.full_name || 'Consultant',
           date_of_birth: data.date_of_birth || null,
+          role: data.role || 'consultant',
         });
       }
     } catch (error) {
@@ -247,6 +250,15 @@ export default function ConsultantDashboard() {
     return 'Overdue';
   };
 
+  // Show loading while checking role
+  if (roleLoading || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile-Optimized Header */}
@@ -265,7 +277,12 @@ export default function ConsultantDashboard() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                {profile?.role === 'researcher' ? 'Researcher Portal' : 'Consultant Portal'}
+                {profile?.role === 'management' ? 'Management Portal' : 
+                 profile?.role === 'consultant' ? 'Consultant Portal' :
+                 profile?.role === 'researcher' ? 'Researcher Portal' :
+                 profile?.role === 'admin' ? 'Admin Portal' :
+                 profile?.role === 'accountant' ? 'Accountant Portal' :
+                 `${profile?.role?.charAt(0).toUpperCase()}${profile?.role?.slice(1) || ''} Portal`}
               </p>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
@@ -438,7 +455,7 @@ export default function ConsultantDashboard() {
               Earnings Overview
             </h3>
             <button
-              onClick={() => router.push('/dashboard/management/earnings')}
+              onClick={() => router.push('/dashboard/consultant/earnings')}
               className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center gap-1"
             >
               View All <ChevronRight size={16} />
@@ -556,26 +573,26 @@ export default function ConsultantDashboard() {
           </h3>
           
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {/* Contact Messages */}
+            {/* My Assignments */}
             <div
-              onClick={() => router.push('/dashboard/management/messages')}
+              onClick={() => router.push('/dashboard/consultant/assignments')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
-              {counts.messages > 0 && (
+              {counts.assignments > 0 && (
                 <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-                  <NotificationBadge count={counts.messages} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
+                  <NotificationBadge count={counts.assignments} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
                 </div>
               )}
-              <div className="bg-blue-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
-                <MessageSquare className="text-white" size={20} />
+              <div className="bg-emerald-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
+                <FileText className="text-white" size={20} />
               </div>
-              <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Contact Messages</h3>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">View and respond to contact form submissions</p>
+              <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">My Assignments</h3>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">View assignments assigned to you</p>
             </div>
 
             {/* Appointments */}
             <div
-              onClick={() => router.push('/dashboard/management/appointments')}
+              onClick={() => router.push('/dashboard/consultant/appointments')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
               {counts.appointments > 0 && (
@@ -587,58 +604,53 @@ export default function ConsultantDashboard() {
                 <Calendar className="text-white" size={20} />
               </div>
               <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Appointments</h3>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Manage appointment requests</p>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">View your scheduled appointments</p>
             </div>
 
-            {/* Assignment Requests */}
+            {/* My Earnings */}
             <div
-              onClick={() => router.push('/dashboard/management/assignment-requests')}
+              onClick={() => router.push('/dashboard/consultant/earnings')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
-              {counts.unreadAssignmentMessages > 0 && (
-                <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-                  <NotificationBadge count={counts.unreadAssignmentMessages} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
-                </div>
-              )}
-              <div className="bg-emerald-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
+              <div className="bg-yellow-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
                 <DollarSign className="text-white" size={20} />
               </div>
-              <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Assignment Requests</h3>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Review, price, negotiate & verify payments</p>
+              <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">My Earnings</h3>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Track your earnings and payments</p>
             </div>
 
             {/* Study Materials */}
             <div
-              onClick={() => router.push('/dashboard/management/materials')}
+              onClick={() => router.push('/dashboard/consultant/materials')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
               <div className="bg-pink-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
                 <BookOpen className="text-white" size={20} />
               </div>
               <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Study Materials</h3>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Upload and organize study materials</p>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Access study materials</p>
             </div>
 
-            {/* Donation Inquiries */}
+            {/* Messages */}
             <div
-              onClick={() => router.push('/dashboard/management/donation-inquiries')}
+              onClick={() => router.push('/dashboard/consultant/messages')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
-              {counts.donationInquiries > 0 && (
+              {counts.messages > 0 && (
                 <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-                  <NotificationBadge count={counts.donationInquiries} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
+                  <NotificationBadge count={counts.messages} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
                 </div>
               )}
-              <div className="bg-yellow-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
-                <DollarSign className="text-white" size={20} />
+              <div className="bg-indigo-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
+                <MessageSquare className="text-white" size={20} />
               </div>
-              <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Donation Inquiries</h3>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">View and manage donation requests</p>
+              <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Messages</h3>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Chat with Management & Admin</p>
             </div>
 
             {/* My Profile */}
             <div
-              onClick={() => router.push('/dashboard/management/profile')}
+              onClick={() => router.push('/dashboard/consultant/profile')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
               <div className="bg-gray-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
@@ -692,7 +704,7 @@ export default function ConsultantDashboard() {
             <span className="text-xs mt-1">Dashboard</span>
           </button>
           <button
-            onClick={() => router.push('/dashboard/management/assignment-requests')}
+            onClick={() => router.push('/dashboard/consultant/assignments')}
             className="flex flex-col items-center py-2 px-1 text-gray-600 relative"
           >
             <FileText size={20} />
@@ -704,7 +716,7 @@ export default function ConsultantDashboard() {
             )}
           </button>
           <button
-            onClick={() => router.push('/dashboard/management/messages')}
+            onClick={() => router.push('/dashboard/consultant/messages')}
             className="flex flex-col items-center py-2 px-1 text-gray-600 relative"
           >
             <MessageSquare size={20} />
@@ -716,19 +728,14 @@ export default function ConsultantDashboard() {
             )}
           </button>
           <button
-            onClick={() => setSelectedTab('notifications')}
+            onClick={() => router.push('/dashboard/consultant/earnings')}
             className="flex flex-col items-center py-2 px-1 text-gray-600 relative"
           >
-            <Bell size={20} />
-            <span className="text-xs mt-1">Alerts</span>
-            {totalNotifications > 0 && (
-              <span className="absolute top-1 right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                {totalNotifications}
-              </span>
-            )}
+            <DollarSign size={20} />
+            <span className="text-xs mt-1">Earnings</span>
           </button>
           <button
-            onClick={() => router.push('/dashboard/management/profile')}
+            onClick={() => router.push('/dashboard/consultant/profile')}
             className="flex flex-col items-center py-2 px-1 text-gray-600"
           >
             <Users size={20} />

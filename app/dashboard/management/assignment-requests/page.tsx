@@ -20,9 +20,12 @@ interface AssignmentRequest {
   client_name: string;
   client_email: string;
   doctor_name: string | null;
+  consultant_name: string | null;
+  consultant_id: number | null;
   has_attachment: boolean;
   created_at: string;
   price_proposed_at: string | null;
+  pending_applications: number;
 }
 
 export default function DoctorAssignmentRequestsPage() {
@@ -353,6 +356,43 @@ export default function DoctorAssignmentRequestsPage() {
                             </p>
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Consultant Assignment Status - Show for all assignments */}
+                    <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {request.consultant_name ? (
+                            <>
+                              <span className="text-purple-600">👨‍💼</span>
+                              <div>
+                                <p className="text-sm font-medium text-purple-900">Assigned to: {request.consultant_name}</p>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-orange-600">⚠️</span>
+                              <p className="text-sm font-medium text-orange-900">No consultant assigned</p>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {request.pending_applications > 0 && (
+                            <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-full">
+                              {request.pending_applications} Application{request.pending_applications > 1 ? 's' : ''}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/dashboard/management/assignment-requests/${request.id}`);
+                            }}
+                            className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+                          >
+                            {request.consultant_name ? 'Manage' : 'Assign'}
+                          </button>
+                        </div>
                       </div>
                     </div>
 

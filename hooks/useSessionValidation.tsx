@@ -52,7 +52,7 @@ export function useSessionValidation() {
   // Render modern modal
   if (showModal) {
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-emerald-900/30 backdrop-blur-sm animate-fadeIn">
         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-slideUp">
           {/* Header with gradient */}
           <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">

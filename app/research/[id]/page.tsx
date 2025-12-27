@@ -258,7 +258,7 @@ export default function ResearchPostPage() {
 
       {/* PDF Viewer Modal */}
       {showPdfViewer && post?.pdf_filename && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-emerald-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-lg">

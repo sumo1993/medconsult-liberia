@@ -12,9 +12,11 @@ import NotificationBadge from '@/components/NotificationBadge';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
+import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 
 export default function ManagementDashboardEnhanced() {
   const router = useRouter();
+  const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('management');
   const { counts, refresh } = useNotifications('management');
   
   const [stats, setStats] = useState({
@@ -105,6 +107,7 @@ export default function ManagementDashboardEnhanced() {
         setProfile({
           full_name: data.full_name || 'Consultant',
           date_of_birth: data.date_of_birth || null,
+          role: data.role || 'management',
         });
       }
     } catch (error) {
@@ -247,6 +250,15 @@ export default function ManagementDashboardEnhanced() {
     return 'Overdue';
   };
 
+  // Show loading while checking role
+  if (roleLoading || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile-Optimized Header */}
@@ -262,7 +274,14 @@ export default function ManagementDashboardEnhanced() {
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Management Portal</p>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
+                {profile?.role === 'management' ? 'Management Portal' : 
+                 profile?.role === 'consultant' ? 'Consultant Portal' :
+                 profile?.role === 'researcher' ? 'Researcher Portal' :
+                 profile?.role === 'admin' ? 'Admin Portal' :
+                 profile?.role === 'accountant' ? 'Accountant Portal' :
+                 `${profile?.role?.charAt(0).toUpperCase()}${profile?.role?.slice(1) || ''} Portal`}
+              </p>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
               <button

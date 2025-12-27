@@ -121,7 +121,9 @@ export default function ManagementProfilePage() {
           showNotification('success', 'Profile photo updated!');
           window.location.reload();
         } else {
-          showNotification('error', 'Failed to upload photo');
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Photo upload error:', errorData);
+          showNotification('error', errorData.details || errorData.error || 'Failed to upload photo');
         }
       };
       reader.readAsDataURL(file);

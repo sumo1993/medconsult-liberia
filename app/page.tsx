@@ -6,6 +6,7 @@ import Services from '@/components/Services';
 import Partnerships from '@/components/Partnerships';
 import ResearchSection from '@/components/ResearchSection';
 import Expertise from '@/components/Expertise';
+import Testimonials from '@/components/Testimonials';
 import Contact from '@/components/Contact';
 import CTA from '@/components/CTA';
 import Footer from '@/components/Footer';
@@ -22,6 +23,7 @@ export default function Home() {
         <Partnerships />
         <ResearchSection />
         <Expertise />
+        <Testimonials />
         <Contact />
         <CTA />
       </main>

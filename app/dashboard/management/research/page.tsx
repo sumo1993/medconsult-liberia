@@ -396,7 +396,7 @@ export default function ManagementResearchPage() {
 
       {/* Modern Confirmation Dialog */}
       {confirmDialog.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
               {confirmDialog.type === 'publish' ? 'Publish Research Post?' : 'Delete Research Post?'}
@@ -430,7 +430,7 @@ export default function ManagementResearchPage() {
 
       {/* PDF Viewer Modal */}
       {pdfViewer.show && pdfViewer.postId && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-emerald-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-lg">

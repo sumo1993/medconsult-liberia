@@ -6,9 +6,11 @@ import { DollarSign, TrendingUp, TrendingDown, Users, Calendar, Plus, Download, 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 
 export default function AccountantDashboard() {
   const router = useRouter();
+  const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('accountant');
   const [activeTab, setActiveTab] = useState('overview');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [earnings, setEarnings] = useState<any[]>([]);
@@ -851,7 +853,7 @@ export default function AccountantDashboard() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div></div>;
+  if (loading || roleLoading || !isAuthorized) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8">
@@ -2680,7 +2682,7 @@ export default function AccountantDashboard() {
 
         {/* Report Preview Modal */}
         {showReportPreview && reportData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">📄 Report Preview</h2>
@@ -2875,7 +2877,7 @@ export default function AccountantDashboard() {
 
         {/* Password Change Request Modal */}
         {showPasswordChangeModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Request Password Change</h2>
@@ -3017,7 +3019,7 @@ export default function AccountantDashboard() {
 
         {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-900/30 backdrop-blur-sm backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 animate-in fade-in zoom-in duration-200">
               <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
                 <X size={32} className="text-red-600" />

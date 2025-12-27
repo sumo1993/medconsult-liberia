@@ -40,10 +40,10 @@ export default function BlogPage() {
               <h3 className="font-semibold text-blue-600">UNICEF Data</h3>
               <p className="text-gray-600">Child health and maternal health statistics</p>
             </a>
-            <a href="https://www.lisgis.net/" target="_blank" rel="noopener noreferrer"
+            <a href="https://data.worldbank.org/country/liberia" target="_blank" rel="noopener noreferrer"
                className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">Liberia Institute of Statistics (LISGIS)</h3>
-              <p className="text-gray-600">Official statistics from Government of Liberia</p>
+              <h3 className="font-semibold text-blue-600">Liberia Statistics - World Bank</h3>
+              <p className="text-gray-600">Comprehensive data and statistics on Liberia from the World Bank</p>
             </a>
             <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener noreferrer"
                className="block p-4 border rounded-lg hover:bg-gray-50">

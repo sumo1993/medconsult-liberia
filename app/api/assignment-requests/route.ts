@@ -37,10 +37,13 @@ export async function GET(request: NextRequest) {
         SELECT ar.*, 
                c.full_name as client_name,
                c.email as client_email,
-               d.full_name as doctor_name
+               d.full_name as doctor_name,
+               consultant.full_name as consultant_name,
+               (SELECT COUNT(*) FROM assignment_applications aa WHERE aa.assignment_id = ar.id AND aa.status = 'pending') as pending_applications
         FROM assignment_requests ar
         LEFT JOIN users c ON ar.client_id = c.id
         LEFT JOIN users d ON ar.doctor_id = d.id
+        LEFT JOIN users consultant ON ar.consultant_id = consultant.id
         ORDER BY ar.created_at DESC
       `;
       params = [];

@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/middleware';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import pool from '@/lib/db';
+import { ResultSetHeader } from 'mysql2';
+
+// Ensure team_photos table exists
+async function ensureTable() {
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS team_photos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      photo_data LONGBLOB NOT NULL,
+      photo_type VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,21 +50,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large. Maximum size is 5MB.' }, { status: 400 });
     }
 
+    await ensureTable();
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     console.log('[Upload] Buffer created, size:', buffer.length);
 
-    // Check Cloudinary config
-    console.log('[Upload] Cloudinary config:', {
-      cloud_name: !!process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: !!process.env.CLOUDINARY_API_KEY,
-      api_secret: !!process.env.CLOUDINARY_API_SECRET
-    });
+    // Store photo in database
+    const [result] = await pool.execute<ResultSetHeader>(
+      'INSERT INTO team_photos (photo_data, photo_type) VALUES (?, ?)',
+      [buffer, file.type]
+    );
 
-    // Upload to Cloudinary
-    console.log('[Upload] Uploading to Cloudinary...');
-    const photoUrl = await uploadToCloudinary(buffer, 'medconsult/team');
-    console.log('[Upload] Upload successful:', photoUrl);
+    const photoId = result.insertId;
+    const photoUrl = `/api/team-members/photo/${photoId}`;
+    
+    console.log('[Upload] Photo stored in database with ID:', photoId);
 
     return NextResponse.json({
       success: true,

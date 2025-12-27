@@ -22,10 +22,13 @@ export async function GET(
               c.full_name as client_name,
               c.email as client_email,
               d.full_name as doctor_name,
-              d.email as doctor_email
+              d.email as doctor_email,
+              consultant.full_name as consultant_name,
+              consultant.email as consultant_email
        FROM assignment_requests ar
        LEFT JOIN users c ON ar.client_id = c.id
        LEFT JOIN users d ON ar.doctor_id = d.id
+       LEFT JOIN users consultant ON ar.consultant_id = consultant.id
        WHERE ar.id = ?`,
       [requestId]
     );
@@ -37,10 +40,11 @@ export async function GET(
     const assignmentRequest = requests[0];
 
     // Check authorization
-    if (
-      user.role === 'client' && assignmentRequest.client_id !== user.userId ||
-      (user.role !== 'client' && user.role !== 'management' && user.role !== 'admin')
-    ) {
+    const isClient = user.role === 'client' && assignmentRequest.client_id === user.userId;
+    const isAssignedConsultant = user.role === 'consultant' && assignmentRequest.consultant_id === user.userId;
+    const isManagementOrAdmin = user.role === 'management' || user.role === 'admin';
+    
+    if (!isClient && !isAssignedConsultant && !isManagementOrAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

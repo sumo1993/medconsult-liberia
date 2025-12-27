@@ -49,8 +49,10 @@ export default function LoginPage() {
             router.push('/dashboard/accountant');
             break;
           case 'consultant':
-          case 'researcher':
             router.push('/dashboard/consultant');
+            break;
+          case 'researcher':
+            router.push('/dashboard/researcher');
             break;
           case 'client':
             router.push('/dashboard/client');

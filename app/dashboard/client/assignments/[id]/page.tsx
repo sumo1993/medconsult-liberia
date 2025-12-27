@@ -38,6 +38,13 @@ interface AssignmentRequest {
   client_review_status: string | null;
 }
 
+interface ReplyTo {
+  id: number;
+  message: string;
+  sender_name: string;
+  attachment_filename?: string;
+}
+
 interface Message {
   id: number;
   sender_name: string;
@@ -48,6 +55,8 @@ interface Message {
   has_attachment: boolean;
   attachment_filename?: string;
   attachment_type?: string;
+  reactions?: Record<string, number[]>;
+  reply_to?: ReplyTo | null;
 }
 
 export default function AssignmentDetailPage() {
@@ -96,8 +105,13 @@ export default function AssignmentDetailPage() {
   const [existingRating, setExistingRating] = useState<any>(null);
   const [loadingRating, setLoadingRating] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [showReactionPicker, setShowReactionPicker] = useState<number | null>(null);
   const messageFileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Reaction emojis
+  const reactionEmojis = ['❤️', '👍', '👎', '😂', '😮', '😢', '🙏'];
 
   // Professional emojis for business communication
   const professionalEmojis = ['👍', '👏', '✅', '📄', '📊', '💼', '🎯', '⭐', '🔔', '📌', '✏️', '📝', '🙏', '💡', '🚀', '⏰', '📅', '✔️'];
@@ -501,12 +515,14 @@ export default function AssignmentDetailPage() {
           message: newMessage,
           attachment: attachmentData,
           filename,
+          replyToId: replyingTo?.id || null,
         }),
       });
 
       if (response.ok) {
         setNewMessage('');
         setMessageFile(null);
+        setReplyingTo(null);
         fetchMessages();
         showNotification('success', 'Message sent!');
       } else {
@@ -517,6 +533,39 @@ export default function AssignmentDetailPage() {
     } finally {
       setSendingMessage(false);
     }
+  };
+
+  const handleReaction = async (messageId: number, emoji: string) => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-requests/${params.id}/messages`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          messageId,
+          emoji,
+        }),
+      });
+
+      if (response.ok) {
+        fetchMessages();
+        setShowReactionPicker(null);
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  };
+
+  const handleReply = (msg: Message) => {
+    setReplyingTo(msg);
+    setShowReactionPicker(null);
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
   };
 
   const insertEmoji = (emoji: string) => {
@@ -1114,45 +1163,116 @@ export default function AssignmentDetailPage() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((msg) => (
-                      <div key={msg.id} className={`flex mb-4 ${
-                        msg.sender_role === 'client' ? 'justify-end' : 'justify-start'
-                      }`}>
-                        <div className={`max-w-[75%] ${
-                          msg.sender_role === 'client' 
-                            ? 'bg-blue-500 text-white rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl' 
-                            : 'bg-white text-gray-900 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm'
-                        } px-4 py-3`}>
-                          {msg.sender_role !== 'client' && (
-                            <p className="text-xs font-semibold text-emerald-600 mb-1">{msg.sender_name}</p>
-                          )}
-                          {msg.message && (
-                            <p className={`text-sm whitespace-pre-wrap break-words ${
-                              msg.sender_role === 'client' ? 'text-white' : 'text-gray-800'
-                            }`}>{msg.message}</p>
-                          )}
-                          {msg.has_attachment && (
-                            <button
-                              onClick={() => handleViewAttachment(msg.id, msg.attachment_filename || 'file', msg.attachment_type || '')}
-                              className={`flex items-center space-x-2 mt-2 px-3 py-2 rounded-lg text-sm ${
-                                msg.sender_role === 'client' 
-                                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                              }`}
-                            >
-                              <Paperclip size={14} />
-                              <span className="font-medium">{msg.attachment_filename}</span>
-                              <Download size={12} />
-                            </button>
-                          )}
-                          <p className={`text-xs mt-1 ${
-                            msg.sender_role === 'client' ? 'text-blue-100' : 'text-gray-500'
-                          }`}>
-                            {formatMessageTime(msg.created_at)}
-                          </p>
+                    {messages.map((msg) => {
+                      const isOwnMessage = msg.sender_role === 'client';
+                      return (
+                        <div key={msg.id} className={`flex mb-4 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                          <div className="relative group max-w-[75%]">
+                            {/* Reply Preview */}
+                            {msg.reply_to && (
+                              <div className={`mb-1 px-3 py-2 rounded-lg text-xs ${
+                                isOwnMessage 
+                                  ? 'bg-blue-600/30 text-blue-100' 
+                                  : 'bg-gray-200 text-gray-600'
+                              }`}>
+                                <p className="font-semibold">{msg.reply_to.sender_name}</p>
+                                <p className="truncate opacity-80">
+                                  {msg.reply_to.attachment_filename ? `📎 ${msg.reply_to.attachment_filename}` : msg.reply_to.message}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Message Bubble */}
+                            <div className={`${
+                              isOwnMessage
+                                ? 'bg-blue-500 text-white rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl' 
+                                : 'bg-white text-gray-900 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl shadow-sm'
+                            } px-4 py-3`}>
+                              {!isOwnMessage && (
+                                <p className="text-xs font-semibold text-emerald-600 mb-1">{msg.sender_name}</p>
+                              )}
+                              {msg.message && (
+                                <p className={`text-sm whitespace-pre-wrap break-words ${
+                                  isOwnMessage ? 'text-white' : 'text-gray-800'
+                                }`}>{msg.message}</p>
+                              )}
+                              {msg.has_attachment && (
+                                <button
+                                  onClick={() => handleViewAttachment(msg.id, msg.attachment_filename || 'file', msg.attachment_type || '')}
+                                  className={`flex items-center space-x-2 mt-2 px-3 py-2 rounded-lg text-sm ${
+                                    isOwnMessage
+                                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                  }`}
+                                >
+                                  <Paperclip size={14} />
+                                  <span className="font-medium">{msg.attachment_filename}</span>
+                                  <Download size={12} />
+                                </button>
+                              )}
+                              <p className={`text-xs mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}`}>
+                                {formatMessageTime(msg.created_at)}
+                              </p>
+                            </div>
+
+                            {/* Reactions Display */}
+                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                              <div className={`flex flex-wrap gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                                {Object.entries(msg.reactions).map(([emoji, users]) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg.id, emoji)}
+                                    className="flex items-center gap-1 px-2 py-0.5 bg-white rounded-full shadow-sm border text-xs hover:bg-gray-50"
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className="text-gray-600">{users.length}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Action Buttons (show on hover) */}
+                            <div className={`absolute top-0 ${isOwnMessage ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2'} 
+                              hidden group-hover:flex items-center gap-1`}>
+                              {/* Reaction Button */}
+                              <button
+                                onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
+                                className="p-1.5 bg-white rounded-full shadow hover:bg-gray-100 text-gray-600"
+                                title="Add reaction"
+                              >
+                                <Smile size={14} />
+                              </button>
+                              {/* Reply Button */}
+                              <button
+                                onClick={() => handleReply(msg)}
+                                className="p-1.5 bg-white rounded-full shadow hover:bg-gray-100 text-gray-600"
+                                title="Reply"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 10l8-8v5c13 0 13 10 13 10s-2-5-13-5v5l-8-7z"/>
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Reaction Picker Popup */}
+                            {showReactionPicker === msg.id && (
+                              <div className={`absolute z-10 ${isOwnMessage ? 'right-0' : 'left-0'} -top-10 
+                                bg-white rounded-full shadow-lg border px-2 py-1 flex gap-1`}>
+                                {reactionEmojis.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg.id, emoji)}
+                                    className="text-xl hover:scale-125 transition-transform p-1"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </>
                 )}
@@ -1160,6 +1280,24 @@ export default function AssignmentDetailPage() {
 
               {/* Message Input - WhatsApp Style */}
               <div className="bg-white border-t p-4">
+                {/* Reply Preview */}
+                {replyingTo && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-blue-50 rounded-lg mb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-blue-700">Replying to {replyingTo.sender_name}</p>
+                      <p className="text-sm text-gray-600 truncate">
+                        {replyingTo.has_attachment ? `📎 ${replyingTo.attachment_filename}` : replyingTo.message}
+                      </p>
+                    </div>
+                    <button
+                      onClick={cancelReply}
+                      className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded ml-2"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
+
                 {messageFile && (
                   <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg mb-3 border border-blue-200">
                     <Paperclip size={16} className="text-blue-600" />
@@ -1370,7 +1508,7 @@ export default function AssignmentDetailPage() {
 
       {/* Styled Accept Price Dialog */}
       {showAcceptDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in">
             {/* Header */}
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4">
@@ -1473,7 +1611,7 @@ export default function AssignmentDetailPage() {
 
       {/* Rating Form Modal */}
       {showRatingForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in">
             {/* Header */}
             <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4">

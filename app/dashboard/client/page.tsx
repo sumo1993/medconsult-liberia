@@ -7,6 +7,7 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
+import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 
 interface DashboardStats {
   myAssignments: number;
@@ -143,6 +144,7 @@ function InProgressAssignments() {
 
 export default function ClientDashboard() {
   const router = useRouter();
+  const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('client');
   const [stats, setStats] = useState<DashboardStats>({
     myAssignments: 0,
     availableResearch: 0,
@@ -152,6 +154,7 @@ export default function ClientDashboard() {
     completedAssignments: 0,
   });
   const [userName, setUserName] = useState('Student');
+  const [userRole, setUserRole] = useState<string>('client');
   const [dateOfBirth, setDateOfBirth] = useState<string>('');
   const [age, setAge] = useState<number | null>(null);
   const [showAge, setShowAge] = useState(true);
@@ -206,6 +209,11 @@ export default function ClientDashboard() {
         // Set user name from profile
         if (data.full_name) {
           setUserName(data.full_name);
+        }
+        
+        // Set user role
+        if (data.role) {
+          setUserRole(data.role);
         }
         
         // Set birthday info
@@ -407,6 +415,15 @@ export default function ClientDashboard() {
     },
   ];
 
+  // Show loading while checking role
+  if (roleLoading || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       {/* Simple Top Header */}
@@ -416,6 +433,11 @@ export default function ClientDashboard() {
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Dashboard</h1>
+              {userRole && (
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                  {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3">
               {/* Profile Avatar */}
@@ -569,7 +591,7 @@ export default function ClientDashboard() {
               {/* Quick Actions */}
               <div className="col-span-2 sm:col-span-1 flex gap-2">
                 <button
-                  onClick={() => router.push('/dashboard/client/assignments/new')}
+                  onClick={() => router.push('/dashboard/client/assignments/request')}
                   className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
                   title="Submit Assignment"
                 >
@@ -638,7 +660,7 @@ export default function ClientDashboard() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => router.push('/dashboard/client/assignments/new')}
+                onClick={() => router.push('/dashboard/client/assignments/request')}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
               >
                 <Upload size={20} />
