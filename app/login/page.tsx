@@ -1,10 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw } from 'lucide-react';
+
+// Generate random CAPTCHA
+const generateCaptcha = () => {
+  const num1 = Math.floor(Math.random() * 10) + 1;
+  const num2 = Math.floor(Math.random() * 10) + 1;
+  const operators = ['+', '-', '×'];
+  const operator = operators[Math.floor(Math.random() * 3)];
+  
+  let answer: number;
+  let question: string;
+  
+  switch (operator) {
+    case '+':
+      answer = num1 + num2;
+      question = `${num1} + ${num2}`;
+      break;
+    case '-':
+      // Ensure positive result
+      const larger = Math.max(num1, num2);
+      const smaller = Math.min(num1, num2);
+      answer = larger - smaller;
+      question = `${larger} - ${smaller}`;
+      break;
+    case '×':
+      answer = num1 * num2;
+      question = `${num1} × ${num2}`;
+      break;
+    default:
+      answer = num1 + num2;
+      question = `${num1} + ${num2}`;
+  }
+  
+  return { question, answer };
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,11 +49,36 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // CAPTCHA state
+  const [captcha, setCaptcha] = useState({ question: '', answer: 0 });
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaError, setCaptchaError] = useState('');
+
+  // Generate CAPTCHA on mount
+  useEffect(() => {
+    setCaptcha(generateCaptcha());
+  }, []);
+
+  const refreshCaptcha = () => {
+    setCaptcha(generateCaptcha());
+    setCaptchaInput('');
+    setCaptchaError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    setCaptchaError('');
+
+    // Verify CAPTCHA
+    if (parseInt(captchaInput) !== captcha.answer) {
+      setCaptchaError('Incorrect answer. Please try again.');
+      refreshCaptcha();
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -62,9 +121,11 @@ export default function LoginPage() {
         }
       } else {
         setError(data.error || 'Login failed');
+        refreshCaptcha();
       }
     } catch (err) {
       setError('Network error. Please try again.');
+      refreshCaptcha();
     } finally {
       setIsLoading(false);
     }
@@ -149,6 +210,41 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* Human Verification CAPTCHA */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Human Verification
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-gradient-to-r from-emerald-100 to-teal-100 px-4 py-3 rounded-lg">
+                  <span className="text-lg font-bold text-emerald-800 select-none">
+                    {captcha.question} = ?
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshCaptcha}
+                  className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                  title="Get new question"
+                >
+                  <RefreshCw size={20} />
+                </button>
+              </div>
+              <input
+                type="number"
+                required
+                value={captchaInput}
+                onChange={(e) => setCaptchaInput(e.target.value)}
+                placeholder="Enter your answer"
+                className={`mt-2 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 ${
+                  captchaError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+              />
+              {captchaError && (
+                <p className="mt-1 text-sm text-red-600">{captchaError}</p>
+              )}
             </div>
           </div>
 
