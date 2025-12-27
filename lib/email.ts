@@ -1,14 +1,30 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Create transporter - use Gmail service for Gmail SMTP
+const isGmail = process.env.SMTP_HOST?.includes('gmail');
+
+const transporter = nodemailer.createTransport(
+  isGmail 
+    ? {
+        service: 'gmail',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      }
+    : {
+        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      }
+);
+
+// Use the actual SMTP email as the from address for Gmail
+const fromEmail = process.env.SMTP_USER || 'noreply@medconsult.com';
 
 export async function sendPasswordResetEmail(
   email: string,
@@ -19,7 +35,7 @@ export async function sendPasswordResetEmail(
 
   try {
     await transporter.sendMail({
-      from: '"MedConsult Liberia" <noreply@medconsult.com>',
+      from: `"MedConsult Liberia" <${fromEmail}>`,
       to: email,
       subject: 'Reset Your Password - MedConsult Liberia',
       html: `
