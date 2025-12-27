@@ -83,25 +83,25 @@ export default function TeamPage() {
                     </div>
 
                     {/* Info */}
-                    <div className="p-6 text-center">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-1">{member.name}</h3>
-                      <p className="text-emerald-600 font-semibold mb-2">{member.role}</p>
+                    <div className="p-6">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-1 text-center">{member.name}</h3>
+                      <p className="text-emerald-600 font-semibold mb-2 text-center">{member.role}</p>
                       
                       {member.specialization && (
-                        <p className="text-sm text-gray-600 mb-4 pb-4">
+                        <p className="text-sm text-gray-600 mb-4 text-center">
                           {member.specialization}
                         </p>
                       )}
 
                       {member.bio && (
-                        <p className="text-gray-700 mb-4 leading-relaxed text-center">
+                        <p className="text-gray-700 mb-4 leading-relaxed text-center mx-auto">
                           {member.bio}
                         </p>
                       )}
 
                       {/* Contact Info */}
                       {(member.email || member.phone || member.linkedin || member.facebook) && (
-                        <div className="flex flex-wrap gap-3 pt-4 justify-center">
+                        <div className="flex flex-wrap gap-3 mt-4 justify-center">
                           {member.email && (
                             <a 
                               href={`mailto:${member.email}`}
