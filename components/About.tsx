@@ -96,20 +96,20 @@ export default function About() {
           </div>
 
           {/* Image */}
-          <div className="flex-1 order-first md:order-last">
-            <div className="rounded-lg overflow-hidden shadow-lg bg-gray-200">
+          <div className="flex-1 order-first md:order-last flex items-center justify-center">
+            <div className="rounded-lg overflow-hidden shadow-lg bg-gray-200 max-w-md">
               {doctor.has_about_photo ? (
                 <img
                   src={`/api/about-me/photo?userId=${doctor.id}&t=${imageTimestamp}`}
                   alt={doctor.full_name}
-                  className="w-full h-auto object-cover"
+                  className="w-full h-auto max-h-[400px] object-cover object-top"
                   loading="eager"
                 />
               ) : (
                 <img
                   src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
                   alt="Doctor in consultation"
-                  className="w-full h-auto object-cover"
+                  className="w-full h-auto max-h-[400px] object-cover"
                   loading="eager"
                 />
               )}
