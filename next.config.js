@@ -4,10 +4,6 @@ const nextConfig = {
     // Completely disable TypeScript checking
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // Disable ESLint during builds
-    ignoreDuringBuilds: true,
-  },
   // Force clean build
   distDir: '.next',
   experimental: {
