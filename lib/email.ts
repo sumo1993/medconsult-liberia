@@ -81,7 +81,7 @@ export async function sendPasswordResetEmail(
                 </p>
                 
                 <!-- Expiry Warning -->
-                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 25px;">
+                <div style="background: #fef3c7; padding: 15px; margin-bottom: 25px; border-radius: 6px;">
                   <p style="margin: 0; font-size: 14px; color: #92400e;">
                     <strong>⚠️ Important:</strong> This link will expire in 1 hour for security reasons.
                   </p>
