@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const BUCKET = 'media';
+const BUCKET = 'gallery'; // existing public Supabase bucket
 
 function isSupabaseConfigured(): boolean {
   return !!(SUPABASE_URL.trim() && SUPABASE_SERVICE_KEY.trim());
@@ -34,13 +34,6 @@ function extensionForMime(mime: string): string {
 
 async function uploadToSupabase(buffer: Buffer, mimeType: string, folder: string): Promise<string> {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-  // Ensure the bucket exists (public)
-  const { data: buckets } = await supabase.storage.listBuckets();
-  const exists = buckets?.some((b) => b.name === BUCKET);
-  if (!exists) {
-    await supabase.storage.createBucket(BUCKET, { public: true });
-  }
 
   const ext = extensionForMime(mimeType);
   const path = `${folder}/${randomUUID()}${ext}`;
