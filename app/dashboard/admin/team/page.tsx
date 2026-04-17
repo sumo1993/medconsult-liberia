@@ -204,7 +204,11 @@ export default function AdminTeamPage() {
     <>
       <BrowserStyleConfirmDialog
         open={pendingDeleteId !== null}
-        message="Are you sure you want to delete this team member?"
+        title="Delete team member"
+        message="Are you sure you want to delete this team member? This cannot be undone."
+        variant="danger"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
         onCancel={() => setPendingDeleteId(null)}
         onConfirm={() => void executeDelete()}
       />

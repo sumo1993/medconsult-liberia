@@ -43,10 +43,14 @@ export default function DashboardMobileLogout() {
 
       <BrowserStyleConfirmDialog
         open={open}
-        message="Are you sure you want to log out?"
+        title="Sign out"
+        message="You will need to sign in again to use your dashboard."
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        intent="logout"
         onCancel={() => setOpen(false)}
         onConfirm={performLogout}
-        overlayClassName="z-[60] md:hidden"
+        overlayClassName="md:hidden"
       />
     </>
   );

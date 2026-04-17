@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { AlertTriangle, LogOut } from 'lucide-react';
 
 export type BrowserStyleConfirmDialogProps = {
   open: boolean;
   message: string;
   onCancel: () => void;
   onConfirm: () => void;
-  /** Shown in small header line, e.g. "example.com says" */
-  originLabel?: string;
+  /** Short heading above the message (toast-style). */
+  title?: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  /** e.g. "md:hidden" for mobile-only dialogs */
-  /** Tailwind classes for the overlay root (e.g. z-index, responsive visibility). */
+  /** `danger` = red primary action (e.g. delete). `default` = emerald (e.g. sign out). */
+  variant?: 'default' | 'danger';
+  /** When variant is default, show a sign-out style icon instead of a generic mark. */
+  intent?: 'default' | 'logout';
   overlayClassName?: string;
 };
 
@@ -21,29 +23,32 @@ export default function BrowserStyleConfirmDialog({
   message,
   onCancel,
   onConfirm,
-  originLabel,
+  title = 'Please confirm',
   confirmLabel = 'OK',
   cancelLabel = 'Cancel',
+  variant = 'default',
+  intent = 'default',
   overlayClassName,
 }: BrowserStyleConfirmDialogProps) {
-  const [host, setHost] = useState('medconsultliberia.com');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setHost(window.location.hostname || 'medconsultliberia.com');
-    }
-  }, []);
-
   if (!open) return null;
 
-  const origin = originLabel ?? `${host} says`;
+  const isDanger = variant === 'danger';
+  const iconWrap = isDanger
+    ? 'bg-red-50 text-red-600 ring-1 ring-red-100'
+    : intent === 'logout'
+      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+      : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200/80';
+
+  const confirmClasses = isDanger
+    ? 'bg-red-600 text-white hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600'
+    : 'bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600';
 
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm ${overlayClassName ?? 'z-[100]'}`}
+      className={`fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 p-4 pb-[max(5.75rem,env(safe-area-inset-bottom,0px)+5rem)] backdrop-blur-[2px] sm:items-center sm:pb-4 ${overlayClassName ?? ''}`}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="browser-style-confirm-title"
+      aria-labelledby="confirm-dialog-title"
     >
       <button
         type="button"
@@ -51,28 +56,47 @@ export default function BrowserStyleConfirmDialog({
         aria-label="Dismiss"
         onClick={onCancel}
       />
-      <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-xl border border-[#3d2620] bg-[#2a1814] shadow-2xl">
-        <div className="px-4 pb-2 pt-4">
-          <p className="text-xs leading-snug text-white/90">{origin}</p>
-          <p id="browser-style-confirm-title" className="mt-3 text-[15px] leading-snug text-white">
-            {message}
-          </p>
-        </div>
-        <div className="flex justify-end gap-2 px-4 pb-4 pt-1">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-full bg-[#5c322a] px-5 py-2 text-sm font-medium text-white hover:bg-[#6e3d33]"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-full bg-[#f0c4b2] px-5 py-2 text-sm font-semibold text-gray-900 hover:bg-[#ffd4c4]"
-          >
-            {confirmLabel}
-          </button>
+      <div
+        className="relative z-10 w-full max-w-md animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="overflow-hidden rounded-t-3xl border border-gray-100 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.18)] ring-1 ring-black/[0.04] sm:rounded-2xl">
+          <div className="flex gap-4 p-5 sm:p-6">
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconWrap}`}
+              aria-hidden
+            >
+              {isDanger ? (
+                <AlertTriangle className="h-6 w-6" strokeWidth={2} />
+              ) : intent === 'logout' ? (
+                <LogOut className="h-6 w-6" strokeWidth={2} />
+              ) : (
+                <AlertTriangle className="h-6 w-6 opacity-70" strokeWidth={2} />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <h2 id="confirm-dialog-title" className="text-base font-semibold leading-tight text-gray-900">
+                {title}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">{message}</p>
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/80 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 sm:w-auto sm:px-5 sm:py-2.5"
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className={`w-full rounded-xl px-4 py-3 text-sm font-semibold shadow-sm sm:w-auto sm:px-5 sm:py-2.5 ${confirmClasses}`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
         </div>
       </div>
     </div>
