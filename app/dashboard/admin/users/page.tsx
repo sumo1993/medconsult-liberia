@@ -11,9 +11,11 @@ interface User {
   email: string;
   full_name: string;
   role: string;
+  phone?: string;
   status: string;
   created_at: string;
   password_change_locked?: number | boolean;
+  password_changed_at?: string | null;
 }
 
 export default function UsersPage() {
@@ -213,10 +215,10 @@ export default function UsersPage() {
     setEditingUser(user);
     setFormData({
       email: user.email,
-      password: '', // Don't populate password
+      password: '',
       full_name: user.full_name,
       role: user.role,
-      phone: '', // We don't have phone in the User interface
+      phone: user.phone || '',
     });
     setShowModal(true);
   };
@@ -241,9 +243,9 @@ export default function UsersPage() {
       const updateData: any = {
         full_name: formData.full_name,
         role: formData.role,
+        phone: formData.phone || null,
       };
 
-      // Only include password if it's provided
       if (formData.password) {
         updateData.password = formData.password;
       }
@@ -737,6 +739,20 @@ export default function UsersPage() {
                   <span className="inline-block w-1 h-1 bg-emerald-500 rounded-full"></span>
                   {editingUser ? 'Leave blank to keep current password' : 'Minimum 8 characters'}
                 </p>
+                {editingUser?.password_changed_at && (
+                  <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                    <KeyRound className="w-3 h-3" />
+                    Last changed: {new Date(editingUser.password_changed_at).toLocaleString('en-LR', {
+                      dateStyle: 'medium', timeStyle: 'short',
+                    })}
+                  </p>
+                )}
+                {editingUser && !editingUser.password_changed_at && (
+                  <p className="mt-1 text-xs text-gray-400 flex items-center gap-1">
+                    <KeyRound className="w-3 h-3" />
+                    Password has not been changed since account was created
+                  </p>
+                )}
               </div>
 
               {/* Actions */}

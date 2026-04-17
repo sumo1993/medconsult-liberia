@@ -1,31 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/db';
-import { RowDataPacket } from 'mysql2';
+import pool, { IS_POSTGRES } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import bcrypt from 'bcryptjs';
 
-async function ensurePasswordChangeLockColumn(): Promise<boolean> {
+async function ensurePasswordColumns(): Promise<boolean> {
   try {
-    const [columns] = await pool.execute<RowDataPacket[]>(
-      `SHOW COLUMNS FROM users LIKE 'password_change_locked'`
-    );
-    if (columns.length > 0) {
-      return true;
+    if (IS_POSTGRES) {
+      await pool.execute(
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_change_locked BOOLEAN NOT NULL DEFAULT FALSE`
+      );
+      await pool.execute(
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP NULL`
+      );
+    } else {
+      const [cols1] = await pool.execute<any[]>(`SHOW COLUMNS FROM users LIKE 'password_change_locked'`);
+      if ((cols1 as any[]).length === 0) {
+        await pool.execute(`ALTER TABLE users ADD COLUMN password_change_locked TINYINT(1) NOT NULL DEFAULT 0`);
+      }
+      const [cols2] = await pool.execute<any[]>(`SHOW COLUMNS FROM users LIKE 'password_changed_at'`);
+      if ((cols2 as any[]).length === 0) {
+        await pool.execute(`ALTER TABLE users ADD COLUMN password_changed_at TIMESTAMP NULL`);
+      }
     }
-
-    await pool.execute(
-      `ALTER TABLE users ADD COLUMN password_change_locked TINYINT(1) NOT NULL DEFAULT 0`
-    );
     return true;
   } catch (error) {
-    console.error('Error ensuring password_change_locked column:', error);
+    console.warn('[Change Password] ensurePasswordColumns warning:', error);
     return false;
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const hasPasswordLockColumn = await ensurePasswordChangeLockColumn();
+    const hasPasswordCols = await ensurePasswordColumns();
 
     const user = await verifyAuth(request);
     if (!user) {
@@ -42,24 +48,16 @@ export async function POST(request: NextRequest) {
     const { currentPassword, newPassword } = await request.json();
 
     if (!currentPassword || !newPassword) {
-      return NextResponse.json(
-        { error: 'Current password and new password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Current password and new password are required' }, { status: 400 });
     }
 
     if (newPassword.length < 6) {
-      return NextResponse.json(
-        { error: 'New password must be at least 6 characters long' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'New password must be at least 6 characters long' }, { status: 400 });
     }
 
-    // Get current password hash
-    const [users] = await pool.execute<RowDataPacket[]>(
-      `SELECT password_hash, ${hasPasswordLockColumn ? 'password_change_locked' : '0 AS password_change_locked'}
-       FROM users
-       WHERE id = ?`,
+    const [users] = await pool.execute<any[]>(
+      `SELECT password_hash, ${hasPasswordCols ? 'password_change_locked' : 'FALSE AS password_change_locked'}
+       FROM users WHERE id = ?`,
       [user.userId]
     );
 
@@ -74,33 +72,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify current password
     const isValid = await bcrypt.compare(currentPassword, users[0].password_hash);
     if (!isValid) {
-      return NextResponse.json(
-        { error: 'Current password is incorrect' },
-        { status: 400 }
+      return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password and record when it was changed
+    if (hasPasswordCols) {
+      await pool.execute(
+        'UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?',
+        [hashedPassword, new Date().toISOString(), user.userId]
+      );
+    } else {
+      await pool.execute(
+        'UPDATE users SET password_hash = ? WHERE id = ?',
+        [hashedPassword, user.userId]
       );
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    // Update password
-    await pool.execute(
-      'UPDATE users SET password_hash = ? WHERE id = ?',
-      [hashedPassword, user.userId]
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: 'Password changed successfully',
-    });
+    return NextResponse.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     console.error('Error changing password:', error);
-    return NextResponse.json(
-      { error: 'Failed to change password' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to change password' }, { status: 500 });
   }
 }
