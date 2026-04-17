@@ -383,22 +383,22 @@ export default function ConsultantMessagesPage() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center space-x-3 sm:space-x-4">
               <button
                 onClick={() => router.push('/dashboard/consultant')}
-                className="text-gray-600 hover:text-gray-900"
+                className="shrink-0 text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft size={24} />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-                <p className="text-sm text-gray-600">Chat with Management & Admin</p>
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Messages</h1>
+                <p className="text-xs text-gray-600 sm:text-sm">Chat with Management & Admin</p>
               </div>
             </div>
             <button
               onClick={() => setShowNewChat(true)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+              className="whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700 sm:px-4"
             >
               New Message
             </button>
@@ -407,11 +407,14 @@ export default function ConsultantMessagesPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-          <div className="flex h-full">
+      <main className="mx-auto max-w-7xl px-2 py-3 sm:px-6 sm:py-6 lg:px-8">
+        <div className="flex h-[calc(100dvh-12.5rem)] min-h-[280px] flex-col overflow-hidden rounded-lg bg-white shadow sm:h-[calc(100dvh-11rem)] md:h-[calc(100vh-200px)] md:min-h-[400px] md:flex-row">
             {/* Conversations List */}
-            <div className="w-1/3 border-r">
+            <div
+              className={`flex h-full min-h-0 w-full shrink-0 flex-col border-r border-gray-200 md:w-[min(100%,380px)] md:max-w-[40%] ${
+                selectedUser ? 'hidden md:flex' : ''
+              }`}
+            >
               <div className="p-4 border-b bg-gray-50">
                 <h3 className="font-semibold text-gray-900">Conversations</h3>
               </div>
@@ -465,12 +468,25 @@ export default function ConsultantMessagesPage() {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
+            <div
+              className={`flex min-h-0 min-w-0 flex-1 flex-col ${selectedUser ? 'flex' : 'hidden md:flex'}`}
+            >
               {selectedUser ? (
                 <>
                   {/* Chat Header */}
                   <div className="p-4 border-b bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
                     <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setMessages([]);
+                        }}
+                        className="shrink-0 rounded-lg p-2 hover:bg-white/10 md:hidden"
+                        aria-label="Back to conversations"
+                      >
+                        <ArrowLeft size={22} />
+                      </button>
                       <UserPhotoAvatar userId={selectedUser.id} name={selectedUser.full_name} className="bg-white/20 ring-2 ring-white/20" isActive={Boolean(presenceByUserId[selectedUser.id]?.active)} />
                       <div>
                         <p className="font-semibold">{selectedUser.full_name}</p>
@@ -507,7 +523,7 @@ export default function ConsultantMessagesPage() {
                               </div>
                             )}
                             <div className={`flex mb-4 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[70%] ${isOwn ? 'order-2' : ''}`}>
+                              <div className={`max-w-[min(92vw,85%)] sm:max-w-[70%] ${isOwn ? 'order-2' : ''}`}>
                                 <div className={`px-4 py-2 rounded-2xl ${
                                   isOwn 
                                     ? 'bg-emerald-500 text-white rounded-br-none' 
@@ -545,7 +561,7 @@ export default function ConsultantMessagesPage() {
                                       : <Check size={14} />
                                   )}
                                 </div>
-                                <div className={`mt-1 flex flex-wrap items-center gap-2 text-xs ${isOwn ? 'justify-end' : ''}`}>
+                                <div className={`mt-1 flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs ${isOwn ? 'justify-end' : ''}`}>
                                   <button
                                     onClick={() => setReplyTo(msg)}
                                     className="text-gray-500 hover:text-gray-800 flex items-center gap-1"
@@ -725,7 +741,6 @@ export default function ConsultantMessagesPage() {
                 </div>
               )}
             </div>
-          </div>
         </div>
       </main>
 
