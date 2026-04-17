@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   FileText, MessageSquare, MessageCircle, Calendar, BookOpen, Users, Bell, Info, DollarSign, Star,
   TrendingUp, Clock, CheckCircle, Target, Activity,
-  Wallet, ArrowUp, ArrowDown, ChevronRight, Eye, EyeOff, LogOut, UserPlus, MapPin
+  Wallet, ArrowUp, ArrowDown, ChevronRight, Eye, EyeOff, LogOut, UserPlus, MapPin, X
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationBadge from '@/components/NotificationBadge';
@@ -58,6 +58,8 @@ export default function ManagementDashboardEnhanced() {
 
   const [selectedTab, setSelectedTab] = useState('overview');
   const [notificationFilter, setNotificationFilter] = useState('all');
+  const [dmToast, setDmToast] = useState<{ visible: boolean; count: number }>({ visible: false, count: 0 });
+  const prevDmCountRef = useRef(-1);
 
   const totalNotifications =
     counts.unreadAssignmentMessages +
@@ -188,6 +190,32 @@ export default function ManagementDashboardEnhanced() {
 
   useSessionValidation();
   useAccountStatus();
+
+  // Show toast + browser notification when new DMs arrive
+  useEffect(() => {
+    const current = counts.directMessagesUnread;
+    const prev = prevDmCountRef.current;
+    if (prev === -1) {
+      prevDmCountRef.current = current;
+      return;
+    }
+    if (current > prev) {
+      setDmToast({ visible: true, count: current });
+      const timer = setTimeout(() => setDmToast((t) => ({ ...t, visible: false })), 8000);
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification('New Direct Message', {
+            body: `You have ${current} unread message${current > 1 ? 's' : ''}. Open Direct Messages to read.`,
+            icon: '/favicon.ico',
+          });
+        } else if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+      return () => clearTimeout(timer);
+    }
+    prevDmCountRef.current = current;
+  }, [counts.directMessagesUnread]);
 
   const fetchSlowData = async () => {
     await Promise.all([
@@ -414,6 +442,37 @@ export default function ManagementDashboardEnhanced() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* DM toast notification */}
+      {dmToast.visible && (
+        <div className="fixed top-5 right-5 z-[9999] flex items-start gap-3 rounded-xl border border-violet-300 bg-violet-50 px-4 py-3 shadow-2xl max-w-sm">
+          <MessageCircle size={20} className="mt-0.5 flex-shrink-0 text-violet-600" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-violet-900">New Direct Message</p>
+            <p className="text-xs text-violet-700 mt-0.5">
+              You have <strong>{dmToast.count}</strong> unread message{dmToast.count > 1 ? 's' : ''}.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setDmToast({ visible: false, count: 0 });
+                markCategorySeen('directMessagesUnread');
+                router.push('/dashboard/management/direct-messages');
+              }}
+              className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-700"
+            >
+              View
+            </button>
+            <button
+              onClick={() => setDmToast({ visible: false, count: 0 })}
+              className="text-violet-600 hover:text-violet-900"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Mobile-Optimized Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">

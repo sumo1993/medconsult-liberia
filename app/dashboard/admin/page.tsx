@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, FileText, MessageSquare, Activity, Calendar, TrendingUp, DollarSign, Bell, Settings, Image as ImageIcon, Handshake, UserCog, Eye, EyeOff, X, MessageSquareQuote, MapPin } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -15,7 +15,7 @@ import CensusFieldAccessAdminPanel from '@/components/CensusFieldAccessAdminPane
 export default function AdminDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('admin');
-  const { counts, loading: notifLoading, refresh, markAllSeen } = useNotifications('admin');
+  const { counts, rawCounts, loading: notifLoading, refresh, markAllSeen, markCategorySeen } = useNotifications('admin');
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalMessages: 0,
@@ -30,6 +30,8 @@ export default function AdminDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({show: false, message: '', type: 'success'});
+  const [dmToast, setDmToast] = useState<{ visible: boolean; count: number }>({ visible: false, count: 0 });
+  const prevDmCountRef = useRef(-1);
   const [loading, setLoading] = useState(true);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -52,6 +54,32 @@ export default function AdminDashboard() {
 
   useSessionValidation();
   useAccountStatus();
+
+  // Show toast + browser notification when new DMs arrive
+  useEffect(() => {
+    const current = counts.directMessagesUnread;
+    const prev = prevDmCountRef.current;
+    if (prev === -1) {
+      prevDmCountRef.current = current;
+      return;
+    }
+    if (current > prev) {
+      setDmToast({ visible: true, count: current });
+      const timer = setTimeout(() => setDmToast((t) => ({ ...t, visible: false })), 8000);
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification('New Direct Message', {
+            body: `You have ${current} unread message${current > 1 ? 's' : ''}. Open Direct Messages to read.`,
+            icon: '/favicon.ico',
+          });
+        } else if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+      return () => clearTimeout(timer);
+    }
+    prevDmCountRef.current = current;
+  }, [counts.directMessagesUnread]);
 
   useEffect(() => {
     fetchStats();
@@ -204,6 +232,37 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* DM toast notification */}
+      {dmToast.visible && (
+        <div className="fixed top-5 right-5 z-[9999] flex items-start gap-3 rounded-xl border border-violet-300 bg-violet-50 px-4 py-3 shadow-2xl max-w-sm">
+          <MessageSquareQuote size={20} className="mt-0.5 flex-shrink-0 text-violet-600" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-violet-900">New Direct Message</p>
+            <p className="text-xs text-violet-700 mt-0.5">
+              You have <strong>{dmToast.count}</strong> unread message{dmToast.count > 1 ? 's' : ''}.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setDmToast({ visible: false, count: 0 });
+                markCategorySeen('directMessagesUnread');
+                router.push('/dashboard/admin/direct-messages');
+              }}
+              className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-700"
+            >
+              View
+            </button>
+            <button
+              onClick={() => setDmToast({ visible: false, count: 0 })}
+              className="text-violet-600 hover:text-violet-900"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
@@ -423,7 +482,10 @@ export default function AdminDashboard() {
               Media
             </button>
             <button
-              onClick={() => router.push('/dashboard/admin/direct-messages')}
+              onClick={() => {
+                markCategorySeen('directMessagesUnread');
+                router.push('/dashboard/admin/direct-messages');
+              }}
               className="relative px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
             >
               <MessageSquareQuote size={16} className="inline mr-1 sm:mr-2" />
