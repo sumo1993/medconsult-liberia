@@ -37,12 +37,28 @@ export async function POST(request: NextRequest) {
 
     console.log('[Upload] File received:', file.name, file.type, file.size);
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      console.log('[Upload] Invalid file type:', file.type);
-      return NextResponse.json({ error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.' }, { status: 400 });
+    const allowedTypes = new Set([
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'image/heic',
+      'image/heif',
+    ]);
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const allowedExt = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif']);
+    const typeOk = file.type ? allowedTypes.has(file.type) : allowedExt.has(ext);
+    if (!typeOk) {
+      console.log('[Upload] Invalid file type:', file.type, ext);
+      return NextResponse.json(
+        { error: 'Invalid file type. Use JPEG, PNG, WebP, GIF, or HEIC from your device.' },
+        { status: 400 }
+      );
     }
+
+    const storedMime =
+      file.type && file.type !== '' ? file.type : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : ext === 'heif' ? 'image/heif' : 'image/jpeg';
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
@@ -59,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Store photo in database
     const [result] = await pool.execute<ResultSetHeader>(
       'INSERT INTO team_photos (photo_data, photo_type) VALUES (?, ?)',
-      [buffer, file.type]
+      [buffer, storedMime]
     );
 
     const photoId = result.insertId;

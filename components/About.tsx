@@ -66,54 +66,56 @@ export default function About() {
     <section id="about" className="py-12 sm:py-16 md:py-20 bg-gray-50">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-start items-stretch gap-8 md:gap-12 lg:gap-16">
-          {/* Text Content */}
+          {/* Text Content: one column width on mobile so body + buttons share the same side margins */}
           <div className="flex min-w-0 flex-1 flex-col">
-            <h3 className="text-balance text-3xl font-bold text-emerald-700 sm:text-4xl mb-3 text-center md:text-left">
-              About {doctor.full_name}
-            </h3>
-            {doctor.status && (
-              <p className="text-balance text-lg text-emerald-600 font-semibold mb-6 text-center md:text-left sm:text-xl">
-                {doctor.status}
-              </p>
-            )}
-            <div className="mx-auto mb-8 w-full max-w-prose text-pretty text-left text-lg leading-relaxed text-gray-700 sm:text-xl sm:leading-relaxed md:mx-0 md:max-w-none">
-              {(() => {
-                const paras = doctor.about_text
-                  .split(/\n\n+/)
-                  .map((s) => s.trim())
-                  .filter(Boolean);
-                if (paras.length === 0) {
-                  return (
-                    <p className="[text-wrap:pretty] break-words">
-                      {doctor.about_text}
+            <div className="mx-auto flex w-full max-w-2xl flex-col md:mx-0 md:max-w-none">
+              <h3 className="mb-3 text-balance text-center text-3xl font-bold text-emerald-700 sm:text-4xl md:text-left">
+                About {doctor.full_name}
+              </h3>
+              {doctor.status && (
+                <p className="mb-6 text-balance text-center text-lg font-semibold text-emerald-600 sm:text-xl md:text-left">
+                  {doctor.status}
+                </p>
+              )}
+              <div className="mb-8 w-full text-pretty text-lg leading-relaxed text-gray-700 max-md:text-justify max-md:hyphens-auto sm:text-xl sm:leading-relaxed md:text-left md:hyphens-none">
+                {(() => {
+                  const paras = doctor.about_text
+                    .split(/\n\n+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  if (paras.length === 0) {
+                    return (
+                      <p className="break-words [text-wrap:pretty]">
+                        {doctor.about_text}
+                      </p>
+                    );
+                  }
+                  return paras.map((para, i) => (
+                    <p
+                      key={i}
+                      className="mb-5 break-words last:mb-0 [text-wrap:pretty] sm:mb-6"
+                    >
+                      {para}
                     </p>
-                  );
-                }
-                return paras.map((para, i) => (
-                  <p
-                    key={i}
-                    className="mb-5 last:mb-0 [text-wrap:pretty] break-words sm:mb-6"
-                  >
-                    {para}
-                  </p>
-                ));
-              })()}
-            </div>
-            <div className="mt-auto flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start sm:gap-4">
-              <button
-                type="button"
-                onClick={handleReadFullBio}
-                className="w-full sm:w-auto sm:min-w-[12rem] inline-flex items-center justify-center px-7 py-4 sm:px-9 sm:py-3.5 bg-emerald-700 text-white font-semibold rounded-lg hover:bg-emerald-800 transition-all hover:-translate-y-0.5 text-center text-base sm:text-lg shadow-sm"
-              >
-                Read Full Biography
-              </button>
-              <button
-                type="button"
-                onClick={handleContactMe}
-                className="w-full sm:w-auto sm:min-w-[12rem] inline-flex items-center justify-center px-7 py-4 sm:px-9 sm:py-3.5 bg-transparent border-2 border-emerald-700 text-emerald-700 font-semibold rounded-lg hover:bg-emerald-700 hover:text-white transition-all text-center text-base sm:text-lg"
-              >
-                Contact Me
-              </button>
+                  ));
+                })()}
+              </div>
+              <div className="mt-auto flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start sm:gap-4">
+                <button
+                  type="button"
+                  onClick={handleReadFullBio}
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-700 px-7 py-4 text-center text-base font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-800 sm:min-w-[12rem] sm:w-auto sm:px-9 sm:py-3.5 sm:text-lg"
+                >
+                  Read Full Biography
+                </button>
+                <button
+                  type="button"
+                  onClick={handleContactMe}
+                  className="inline-flex w-full items-center justify-center rounded-lg border-2 border-emerald-700 bg-transparent px-7 py-4 text-center text-base font-semibold text-emerald-700 transition-all hover:bg-emerald-700 hover:text-white sm:min-w-[12rem] sm:w-auto sm:px-9 sm:py-3.5 sm:text-lg"
+                >
+                  Contact Me
+                </button>
+              </div>
             </div>
           </div>
 

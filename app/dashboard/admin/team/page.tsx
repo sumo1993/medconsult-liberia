@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Save, X, ArrowLeft, User, Mail, Phone, Linkedin, Facebook, Eye, EyeOff, Upload, Image as ImageIcon } from 'lucide-react';
 import PaginationControls from '@/components/PaginationControls';
@@ -28,6 +28,8 @@ export default function AdminTeamPage() {
   });
   const [uploading, setUploading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [localPhotoPreview, setLocalPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -200,6 +202,16 @@ export default function AdminTeamPage() {
     setCurrentPage(1);
   }, [members]);
 
+  useEffect(() => {
+    if (!photoFile) {
+      setLocalPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setLocalPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
+
   return (
     <>
       <BrowserStyleConfirmDialog
@@ -337,27 +349,36 @@ export default function AdminTeamPage() {
                   </label>
                   <div className="space-y-3">
                     {/* File Upload */}
-                    <div className="flex items-center gap-3">
-                      <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-emerald-500 cursor-pointer transition-colors">
-                        <Upload size={20} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {photoFile ? photoFile.name : 'Click to upload photo'}
-                        </span>
+                    <div className="flex items-stretch gap-3">
+                      <div className="relative min-h-[3.25rem] flex-1">
                         <input
+                          ref={photoInputRef}
                           type="file"
-                          accept="image/*"
+                          id="team-member-photo-input"
+                          accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) setPhotoFile(file);
                           }}
-                          className="hidden"
+                          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                          aria-label="Choose team member photo from your device"
                         />
-                      </label>
+                        <div className="pointer-events-none flex h-full min-h-[3.25rem] items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 transition-colors hover:border-emerald-500">
+                          <Upload size={20} className="shrink-0 text-gray-400" />
+                          <span className="truncate text-center text-sm text-gray-600">
+                            {photoFile ? photoFile.name : 'Tap to choose a photo from your device'}
+                          </span>
+                        </div>
+                      </div>
                       {photoFile && (
                         <button
                           type="button"
-                          onClick={() => setPhotoFile(null)}
-                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          onClick={() => {
+                            setPhotoFile(null);
+                            if (photoInputRef.current) photoInputRef.current.value = '';
+                          }}
+                          className="shrink-0 self-center rounded-lg px-3 py-2 text-red-600 hover:bg-red-50"
+                          aria-label="Remove selected photo"
                         >
                           <X size={20} />
                         </button>
@@ -382,18 +403,20 @@ export default function AdminTeamPage() {
                       placeholder="https://example.com/photo.jpg"
                     />
                     
-                    {/* Preview */}
-                    {formData.photo && (
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <img 
-                          src={formData.photo} 
-                          alt="Preview" 
-                          className="w-16 h-16 rounded-full object-cover"
+                    {/* Preview: local file or URL */}
+                    {(localPhotoPreview || formData.photo) && (
+                      <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+                        <img
+                          src={localPhotoPreview || formData.photo}
+                          alt="Preview"
+                          className="h-16 w-16 rounded-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
-                        <span className="text-sm text-gray-600">Photo preview</span>
+                        <span className="text-sm text-gray-600">
+                          {localPhotoPreview ? 'Selected photo preview' : 'Photo preview'}
+                        </span>
                       </div>
                     )}
                   </div>
