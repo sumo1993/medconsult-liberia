@@ -242,6 +242,7 @@ export default function UsersPage() {
       const token = localStorage.getItem('auth-token');
       const updateData: any = {
         full_name: formData.full_name,
+        email: formData.email.trim().toLowerCase(),
         role: formData.role,
         phone: formData.phone || null,
       };
@@ -668,17 +669,16 @@ export default function UsersPage() {
                 <input
                   type="email"
                   id="email"
-                  required={!editingUser}
+                  required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={!!editingUser}
-                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 placeholder-gray-400 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 border-2 border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition-all bg-emerald-50/30 placeholder-gray-400"
                   placeholder="user@example.com"
                 />
                 {editingUser && (
                   <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
                     <span className="inline-block w-1 h-1 bg-emerald-500 rounded-full"></span>
-                    Email cannot be changed
+                    Changing email will take effect immediately for the user
                   </p>
                 )}
               </div>

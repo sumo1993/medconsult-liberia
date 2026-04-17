@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 import bcrypt from 'bcryptjs';
 
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
     console.log('[Change Email] Request from user:', user.userId);
 
     // Get current user data
-    const [users] = await pool.execute<RowDataPacket[]>(
+    const [users] = await pool.execute<any[]>(
       'SELECT email, password_hash FROM users WHERE id = ?',
       [user.userId]
     );
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if new email already exists
-    const [existingUsers] = await pool.execute<RowDataPacket[]>(
+    const [existingUsers] = await pool.execute<any[]>(
       'SELECT id FROM users WHERE email = ? AND id != ?',
       [newEmail, user.userId]
     );

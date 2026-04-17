@@ -17,7 +17,7 @@ export async function PUT(
     const { id } = await context.params;
     const userId = parseInt(id);
     const body = await request.json();
-    const { full_name, role, phone, password } = body;
+    const { full_name, email, role, phone, password } = body;
 
     if (!full_name || !role) {
       return NextResponse.json({ error: 'Full name and role are required' }, { status: 400 });
@@ -25,6 +25,18 @@ export async function PUT(
 
     if (!['admin', 'management', 'client', 'accountant', 'consultant', 'researcher', 'census'].includes(role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    }
+
+    // Validate and check for email conflicts if email is being changed
+    if (email) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const [existing] = await pool.execute<any[]>(
+        'SELECT id FROM users WHERE LOWER(email) = ? AND id != ? LIMIT 1',
+        [normalizedEmail, userId]
+      );
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'That email address is already used by another account' }, { status: 400 });
+      }
     }
 
     // Determine which phone column exists
@@ -44,8 +56,13 @@ export async function PUT(
       phoneColumn = 'phone_number';
     }
 
-    const setClauses: string[] = ['full_name = ?', `role = ?`, `${phoneColumn} = ?`];
+    const setClauses: string[] = ['full_name = ?', 'role = ?', `${phoneColumn} = ?`];
     const queryParams: unknown[] = [full_name, role, phone || null];
+
+    if (email) {
+      setClauses.push('email = ?');
+      queryParams.push(String(email).trim().toLowerCase());
+    }
 
     if (password && password.length >= 6) {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -66,7 +83,7 @@ export async function PUT(
     }
 
     const [updatedUser] = await pool.execute<any[]>(
-      `SELECT id, full_name, role, COALESCE(phone_number, phone, '') AS phone FROM users WHERE id = ?`,
+      `SELECT id, email, full_name, role, COALESCE(phone_number, phone, '') AS phone FROM users WHERE id = ?`,
       [userId]
     );
 
