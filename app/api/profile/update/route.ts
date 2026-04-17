@@ -1,46 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/db';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import pool, { IS_POSTGRES } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 
 export async function PUT(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
     if (!user) {
-      console.log('[Profile Update] Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const data = await request.json();
-    
-    console.log('[Profile Update] User ID:', user.userId);
-    console.log('[Profile Update] Updating profile with data:', {
-      full_name: data.full_name,
-      email: data.email,
-      date_of_birth: data.date_of_birth,
-      city: data.city,
-      phone_number: data.phone_number,
-    });
 
-    const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
-    const usePostgres =
-      dbClient === 'postgres' ||
-      dbClient === 'postgresql' ||
-      !!process.env.DATABASE_URL;
-
-    const [columns] = await pool.execute<RowDataPacket[]>(
-      usePostgres
-        ? `SELECT column_name
-           FROM information_schema.columns
+    // Get existing columns from users table
+    const [columns] = await pool.execute<any[]>(
+      IS_POSTGRES
+        ? `SELECT column_name FROM information_schema.columns
            WHERE table_schema = 'public' AND table_name = 'users'`
-        : `SELECT COLUMN_NAME
-           FROM INFORMATION_SCHEMA.COLUMNS
+        : `SELECT COLUMN_NAME as column_name FROM INFORMATION_SCHEMA.COLUMNS
            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'`
     );
+
     const existingColumns = new Set(
-      columns.map((row) =>
-        String((row as RowDataPacket).column_name || (row as RowDataPacket).COLUMN_NAME || '').toLowerCase()
-      )
+      columns.map((row) => String(row.column_name || '').toLowerCase())
     );
 
     const fieldValues: Record<string, unknown> = {
@@ -71,6 +52,7 @@ export async function PUT(request: NextRequest) {
     const updateEntries = Object.entries(fieldValues).filter(([column]) =>
       existingColumns.has(column.toLowerCase())
     );
+
     if (updateEntries.length === 0) {
       return NextResponse.json(
         { error: 'No updatable profile columns found in users table' },
@@ -81,40 +63,21 @@ export async function PUT(request: NextRequest) {
     const setClause = updateEntries.map(([column]) => `${column} = ?`).join(', ');
     const values = updateEntries.map(([, value]) => value);
 
-    const [result] = await pool.execute<ResultSetHeader>(
+    const [, meta] = await pool.execute(
       `UPDATE users SET ${setClause} WHERE id = ?`,
       [...values, user.userId]
     );
 
-    console.log('[Profile Update] Affected rows:', result.affectedRows);
-    console.log('[Profile Update] Changed rows:', result.changedRows);
-
-    if (result.affectedRows === 0) {
-      console.log('[Profile Update] User not found with ID:', user.userId);
+    if ((meta as any).affectedRows === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    console.log('[Profile Update] ✅ Profile updated successfully for user:', user.userId);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Profile updated successfully',
-    });
+    return NextResponse.json({ success: true, message: 'Profile updated successfully' });
   } catch (error: unknown) {
-    const errorObj = error as { message?: string; code?: string; sqlMessage?: string };
-    console.error('[Profile Update] ❌ Error updating profile:', error);
-    console.error('[Profile Update] Error details:', {
-      message: errorObj?.message,
-      code: errorObj?.code,
-      sqlMessage: errorObj?.sqlMessage
-    });
+    const errorObj = error as { message?: string; code?: string };
+    console.error('[Profile Update] Error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to update profile',
-        details: errorObj?.message,
-        code: errorObj?.code,
-        sqlMessage: errorObj?.sqlMessage 
-      },
+      { error: 'Failed to update profile', details: errorObj?.message },
       { status: 500 }
     );
   }
