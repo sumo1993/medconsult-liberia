@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.2.6",
+    "@supabase/supabase-js": "^2.103.3",
     "@types/nodemailer": "^7.0.4",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
