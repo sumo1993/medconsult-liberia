@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const BUCKET = 'gallery'; // existing public Supabase bucket
+/** Public bucket for uploads. Live project uses `media`; override if yours differs. */
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET?.trim() || 'media';
 
 function isSupabaseConfigured(): boolean {
   return !!(SUPABASE_URL.trim() && SUPABASE_SERVICE_KEY.trim());

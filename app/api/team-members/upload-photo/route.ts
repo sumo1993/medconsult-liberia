@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Production (Postgres on Vercel, etc.): use Supabase gallery or Cloudinary — never LONGBLOB DDL on Postgres
+    // Production (Postgres on Vercel, etc.): use Supabase Storage or Cloudinary — never LONGBLOB DDL on Postgres
     if (isRemoteMediaStorageConfigured()) {
       const { url } = await uploadMediaBuffer(buffer, storedMime, 'medconsult/team-members');
       return NextResponse.json({
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Photo storage is not configured. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to use the gallery bucket, or set CLOUDINARY_* variables.',
+            'Photo storage is not configured. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (optional: SUPABASE_STORAGE_BUCKET, default media), or set CLOUDINARY_* variables.',
         },
         { status: 503 }
       );
