@@ -20,9 +20,12 @@ function isCloudinaryConfigured(): boolean {
 function extensionForMime(mime: string): string {
   const map: Record<string, string> = {
     'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
     'image/png': '.png',
     'image/gif': '.gif',
     'image/webp': '.webp',
+    'image/heic': '.heic',
+    'image/heif': '.heif',
     'image/svg+xml': '.svg',
     'video/mp4': '.mp4',
     'video/webm': '.webm',
