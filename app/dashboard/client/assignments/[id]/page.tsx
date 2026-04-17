@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ArrowLeft, Download, DollarSign, Check, X, MessageSquare, 
-  Upload, FileText, Clock, CheckCircle, AlertCircle, Send, Paperclip, Smile, Star, Pencil, Trash2
+  Upload, FileText, Clock, CheckCircle, AlertCircle, XCircle, Send, Paperclip, Smile, Star, Pencil, Trash2
 } from 'lucide-react';
 import FileViewer from '@/components/FileViewer';
 import { RatingForm } from '@/components/RatingStars';
@@ -758,12 +758,32 @@ export default function AssignmentDetailPage() {
         </div>
       </header>
 
-      {/* Notification */}
+      {/* Toast Notification */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white`}>
-          {notification.message}
+        <div className="fixed top-4 right-4 z-[9999]">
+          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl min-w-[300px] max-w-sm ${
+            notification.type === 'success'
+              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+              : 'bg-gradient-to-r from-red-500 to-red-600'
+          } text-white`}>
+            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+              {notification.type === 'success'
+                ? <CheckCircle size={20} className="text-white" />
+                : <XCircle size={20} className="text-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">
+                {notification.type === 'success' ? 'Success' : 'Error'}
+              </p>
+              <p className="text-xs text-white/90 mt-0.5 leading-relaxed">{notification.message}</p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="flex-shrink-0 text-white/70 hover:text-white transition-colors ml-1"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
       )}
 

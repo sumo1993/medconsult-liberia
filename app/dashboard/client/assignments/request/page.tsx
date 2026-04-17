@@ -315,51 +315,30 @@ export default function RequestAssignmentPage() {
         </div>
       </main>
 
-      {/* Modern Toast Notification */}
+      {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in">
-          <div
-            className={`flex items-center space-x-3 px-6 py-4 rounded-lg shadow-2xl border-l-4 ${
-              notification.type === 'success'
-                ? 'bg-white border-green-500'
-                : 'bg-white border-red-500'
-            }`}
-            style={{
-              animation: 'slideIn 0.3s ease-out',
-              minWidth: '320px',
-              maxWidth: '500px',
-            }}
-          >
-            {notification.type === 'success' ? (
-              <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={24} />
-              </div>
-            ) : (
-              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <XCircle className="text-red-600" size={24} />
-              </div>
-            )}
-            <div className="flex-1">
-              <h4
-                className={`font-semibold ${
-                  notification.type === 'success' ? 'text-green-900' : 'text-red-900'
-                }`}
-              >
-                {notification.type === 'success' ? 'Success!' : 'Error'}
-              </h4>
-              <p
-                className={`text-sm ${
-                  notification.type === 'success' ? 'text-green-700' : 'text-red-700'
-                }`}
-              >
-                {notification.message}
+        <div className="fixed top-4 right-4 z-[9999]">
+          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl min-w-[300px] max-w-sm ${
+            notification.type === 'success'
+              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+              : 'bg-gradient-to-r from-red-500 to-red-600'
+          } text-white`}>
+            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+              {notification.type === 'success'
+                ? <CheckCircle size={20} className="text-white" />
+                : <XCircle size={20} className="text-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">
+                {notification.type === 'success' ? 'Success' : 'Error'}
               </p>
+              <p className="text-xs text-white/90 mt-0.5 leading-relaxed">{notification.message}</p>
             </div>
             <button
               onClick={() => setNotification(null)}
-              className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+              className="flex-shrink-0 text-white/70 hover:text-white transition-colors ml-1"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>
