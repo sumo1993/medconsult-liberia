@@ -16,9 +16,12 @@ export async function GET(
 
     const { id } = await params;
 
-    // Fetch file from database
+    // Fetch file with assignment ownership info
     const [files] = await pool.execute<RowDataPacket[]>(
-      'SELECT file_name, file_type, file_data FROM assignment_files WHERE id = ?',
+      `SELECT af.file_name, af.file_type, af.file_data, ar.client_id, ar.consultant_id, ar.doctor_id
+       FROM assignment_files af
+       JOIN assignment_requests ar ON af.assignment_request_id = ar.id
+       WHERE af.id = ?`,
       [id]
     );
 
@@ -27,6 +30,16 @@ export async function GET(
     }
 
     const file = files[0];
+
+    // Verify the user is a participant or admin/management
+    const isParticipant =
+      file.client_id === user.userId ||
+      file.consultant_id === user.userId ||
+      file.doctor_id === user.userId;
+    const isPrivileged = ['admin', 'management', 'accountant'].includes(user.role);
+    if (!isParticipant && !isPrivileged) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
 
     // Check if file has data
     if (!file.file_data || file.file_data.length === 0) {

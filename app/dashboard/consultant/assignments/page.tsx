@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Clock, CheckCircle, AlertCircle, Eye, DollarSign, Calendar, Briefcase, Send, XCircle, Users, Lock, X, BookOpen } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Assignment {
   id: number;
@@ -33,6 +34,8 @@ export default function ConsultantAssignmentsPage() {
   const [applyingTo, setApplyingTo] = useState<number | null>(null);
   const [applicationMessage, setApplicationMessage] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   
   // View Details Modal
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
@@ -220,6 +223,28 @@ export default function ConsultantAssignmentsPage() {
     return a.status === filter;
   });
 
+  const sortedMyAssignments = [...filteredMyAssignments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const sortedAvailableAssignments = [...availableAssignments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const sortedCompletedAssignments = [...completedAssignments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const listForActiveTab =
+    activeTab === 'my' ? sortedMyAssignments : activeTab === 'available' ? sortedAvailableAssignments : sortedCompletedAssignments;
+  const totalPages = Math.max(1, Math.ceil(listForActiveTab.length / itemsPerPage));
+  const paginatedForActiveTab = listForActiveTab.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedMyAssignments = activeTab === 'my' ? paginatedForActiveTab : [];
+  const paginatedAvailableAssignments = activeTab === 'available' ? paginatedForActiveTab : [];
+  const paginatedCompletedAssignments = activeTab === 'library' ? paginatedForActiveTab : [];
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filter, myAssignments, allAssignments]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Notification */}
@@ -352,7 +377,7 @@ export default function ConsultantAssignmentsPage() {
           </div>
         ) : activeTab === 'my' ? (
           // My Assigned Work Tab
-          filteredMyAssignments.length === 0 ? (
+          sortedMyAssignments.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <FileText className="mx-auto text-gray-400 mb-4" size={48} />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No assignments assigned to you yet</h3>
@@ -368,7 +393,7 @@ export default function ConsultantAssignmentsPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {filteredMyAssignments.map((assignment) => (
+              {paginatedMyAssignments.map((assignment) => (
                 <div
                   key={assignment.id}
                   className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
@@ -426,7 +451,7 @@ export default function ConsultantAssignmentsPage() {
           )
         ) : activeTab === 'available' ? (
           // Available/New Requests Tab
-          availableAssignments.length === 0 ? (
+          sortedAvailableAssignments.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <Users className="mx-auto text-gray-400 mb-4" size={48} />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No new requests available</h3>
@@ -434,7 +459,7 @@ export default function ConsultantAssignmentsPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {availableAssignments.map((assignment) => {
+              {paginatedAvailableAssignments.map((assignment) => {
                 const isAssignedToMe = myAssignments.some(a => a.id === assignment.id);
                 const hasApplied = assignment.has_applied > 0;
                 const applicationPending = assignment.application_status === 'pending';
@@ -576,7 +601,7 @@ export default function ConsultantAssignmentsPage() {
           )
         ) : (
           // Reference Library Tab (Completed Assignments)
-          completedAssignments.length === 0 ? (
+          sortedCompletedAssignments.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <BookOpen className="mx-auto text-gray-400 mb-4" size={48} />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No completed assignments yet</h3>
@@ -584,7 +609,7 @@ export default function ConsultantAssignmentsPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {completedAssignments.map((assignment: any) => (
+              {paginatedCompletedAssignments.map((assignment: any) => (
                 <div
                   key={assignment.id}
                   className="bg-white rounded-lg shadow p-6"
@@ -655,6 +680,13 @@ export default function ConsultantAssignmentsPage() {
               ))}
             </div>
           )
+        )}
+        {!loading && listForActiveTab.length > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </main>
 

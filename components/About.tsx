@@ -63,32 +63,54 @@ export default function About() {
   }
 
   return (
-    <section id="about" className="py-20 bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-center gap-12">
+    <section id="about" className="py-12 sm:py-16 md:py-20 bg-gray-50">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row md:items-start items-stretch gap-8 md:gap-12 lg:gap-16">
           {/* Text Content */}
-          <div className="flex-1">
-            <h3 className="text-3xl font-bold text-emerald-700 mb-2 text-center">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <h3 className="text-balance text-3xl font-bold text-emerald-700 sm:text-4xl mb-3 text-center md:text-left">
               About {doctor.full_name}
             </h3>
             {doctor.status && (
-              <p className="text-lg text-emerald-600 font-semibold mb-6 text-center">
+              <p className="text-balance text-lg text-emerald-600 font-semibold mb-6 text-center md:text-left sm:text-xl">
                 {doctor.status}
               </p>
             )}
-            <div className="text-gray-700 mb-6 whitespace-pre-wrap text-justify">
-              {doctor.about_text}
+            <div className="text-gray-700 mb-8 w-full max-w-prose md:max-w-none mx-auto md:mx-0 text-lg leading-relaxed sm:text-xl sm:leading-relaxed text-justify hyphens-auto">
+              {(() => {
+                const paras = doctor.about_text
+                  .split(/\n\n+/)
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                if (paras.length === 0) {
+                  return (
+                    <p className="[text-wrap:pretty] break-words">
+                      {doctor.about_text}
+                    </p>
+                  );
+                }
+                return paras.map((para, i) => (
+                  <p
+                    key={i}
+                    className="mb-5 last:mb-0 [text-wrap:pretty] break-words sm:mb-6"
+                  >
+                    {para}
+                  </p>
+                ));
+              })()}
             </div>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="mt-auto flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start sm:gap-4">
               <button
+                type="button"
                 onClick={handleReadFullBio}
-                className="inline-block px-8 py-3 bg-emerald-700 text-white font-semibold rounded-md hover:bg-emerald-800 transition-all hover:-translate-y-1 text-center"
+                className="w-full sm:w-auto sm:min-w-[12rem] inline-flex items-center justify-center px-7 py-4 sm:px-9 sm:py-3.5 bg-emerald-700 text-white font-semibold rounded-lg hover:bg-emerald-800 transition-all hover:-translate-y-0.5 text-center text-base sm:text-lg shadow-sm"
               >
                 Read Full Biography
               </button>
               <button
+                type="button"
                 onClick={handleContactMe}
-                className="inline-block px-8 py-3 bg-transparent border-2 border-emerald-700 text-emerald-700 font-semibold rounded-md hover:bg-emerald-700 hover:text-white transition-all text-center"
+                className="w-full sm:w-auto sm:min-w-[12rem] inline-flex items-center justify-center px-7 py-4 sm:px-9 sm:py-3.5 bg-transparent border-2 border-emerald-700 text-emerald-700 font-semibold rounded-lg hover:bg-emerald-700 hover:text-white transition-all text-center text-base sm:text-lg"
               >
                 Contact Me
               </button>
@@ -96,8 +118,8 @@ export default function About() {
           </div>
 
           {/* Image */}
-          <div className="flex-1 order-first md:order-last flex items-center justify-center">
-            <div className="rounded-lg overflow-hidden shadow-lg bg-gray-200 max-w-md">
+          <div className="flex min-w-0 flex-1 order-first md:order-last flex items-center justify-center md:pt-1">
+            <div className="w-full max-w-md rounded-lg overflow-hidden shadow-lg bg-gray-200">
               {doctor.has_about_photo ? (
                 <img
                   src={`/api/about-me/photo?userId=${doctor.id}&t=${imageTimestamp}`}

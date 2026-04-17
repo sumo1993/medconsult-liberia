@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
+import { RowDataPacket } from 'mysql2';
+
+interface FinalFileRow extends RowDataPacket {
+  final_submission_data: Buffer | null;
+  final_submission_filename: string | null;
+  final_submission_type: string | null;
+}
 
 // POST - Submit final work
 export async function POST(
@@ -14,12 +21,28 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (user.role !== 'management' && user.role !== 'admin') {
+    if (user.role !== 'consultant' && user.role !== 'management' && user.role !== 'admin') {
       return NextResponse.json({ error: 'Only consultants can submit final work' }, { status: 403 });
     }
 
     const params = await context.params;
     const requestId = parseInt(params.id);
+
+    // Verify assignment ownership/authorization
+    const [assignments] = await pool.execute<RowDataPacket[]>(
+      'SELECT id, consultant_id, doctor_id FROM assignment_requests WHERE id = ?',
+      [requestId]
+    );
+    if (assignments.length === 0) {
+      return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    }
+    const assignment = assignments[0];
+    const isAssignedConsultant =
+      assignment.consultant_id === user.userId || assignment.doctor_id === user.userId;
+    const isManagementOrAdmin = user.role === 'management' || user.role === 'admin';
+    if (!isAssignedConsultant && !isManagementOrAdmin) {
+      return NextResponse.json({ error: 'You are not assigned to this assignment' }, { status: 403 });
+    }
     
     const body = await request.json();
     const { fileData, filename, notes } = body;
@@ -45,8 +68,12 @@ export async function POST(
            final_submission_size = ?, 
            final_submission_type = ?,
            final_submitted_at = NOW(),
-           final_submission_notes = ?,
-           client_review_status = 'pending'
+            final_submission_notes = ?,
+           client_review_status = 'pending',
+           status = CASE
+             WHEN status IN ('assigned', 'payment_verified', 'payment_uploaded') THEN 'in_progress'
+             ELSE status
+           END
        WHERE id = ?`,
       [fileBuffer, filename, fileSize, fileType, notes || null, requestId]
     );
@@ -68,10 +95,11 @@ export async function POST(
       success: true, 
       message: 'Final work submitted for client review'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Submit Final] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to submit final work: ' + error.message },
+      { error: 'Failed to submit final work: ' + message },
       { status: 500 }
     );
   }
@@ -91,17 +119,17 @@ export async function GET(
     const params = await context.params;
     const requestId = parseInt(params.id);
 
-    const [rows] = await pool.execute(
+    const [rows] = await pool.execute<FinalFileRow[]>(
       `SELECT final_submission_data, final_submission_filename, final_submission_type
        FROM assignment_requests WHERE id = ?`,
       [requestId]
     );
 
-    if (!rows || (rows as any[]).length === 0) {
+    if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
     }
 
-    const assignment = (rows as any[])[0];
+    const assignment = rows[0];
     if (!assignment.final_submission_data) {
       return NextResponse.json({ error: 'No final submission yet' }, { status: 404 });
     }

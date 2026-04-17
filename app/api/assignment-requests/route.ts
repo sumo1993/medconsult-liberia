@@ -3,6 +3,30 @@ import pool from '@/lib/db';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
+async function ensureAssignmentRequestIdDefaultForPostgres() {
+  await pool.execute(`
+    CREATE SEQUENCE IF NOT EXISTS assignment_requests_id_seq
+  `);
+
+  await pool.execute(`
+    ALTER TABLE assignment_requests
+    ALTER COLUMN id SET DEFAULT nextval('assignment_requests_id_seq')
+  `);
+
+  await pool.execute(`
+    ALTER SEQUENCE assignment_requests_id_seq
+    OWNED BY assignment_requests.id
+  `);
+
+  await pool.execute(`
+    SELECT setval(
+      'assignment_requests_id_seq',
+      COALESCE((SELECT MAX(id) FROM assignment_requests), 0) + 1,
+      false
+    )
+  `);
+}
+
 // GET - Fetch assignment requests (filtered by role)
 export async function GET(request: NextRequest) {
   try {
@@ -15,8 +39,16 @@ export async function GET(request: NextRequest) {
 
     console.log('[API] User:', user.email, 'Role:', user.role, 'ID:', user.userId);
 
+    // Self-heal legacy rows imported without timestamps so sorting remains stable.
+    await pool.execute(`
+      UPDATE assignment_requests
+      SET created_at = NOW(),
+          updated_at = NOW()
+      WHERE created_at IS NULL
+    `);
+
     let query = '';
-    let params: any[] = [];
+    let params: unknown[] = [];
 
     if (user.role === 'client') {
       // Clients see only their requests
@@ -27,7 +59,7 @@ export async function GET(request: NextRequest) {
         FROM assignment_requests ar
         LEFT JOIN users u ON ar.doctor_id = u.id
         WHERE ar.client_id = ?
-        ORDER BY ar.created_at DESC
+        ORDER BY ar.id DESC
       `;
       params = [user.userId];
       console.log('[API] Fetching assignments for client ID:', user.userId);
@@ -44,7 +76,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN users c ON ar.client_id = c.id
         LEFT JOIN users d ON ar.doctor_id = d.id
         LEFT JOIN users consultant ON ar.consultant_id = consultant.id
-        ORDER BY ar.created_at DESC
+        ORDER BY ar.id DESC
       `;
       params = [];
       console.log('[API] Fetching all assignments for', user.role);
@@ -104,20 +136,64 @@ export async function POST(request: NextRequest) {
       attachmentSize = attachmentBuffer.length;
     }
 
+    const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+    const usePostgres =
+      dbClient === 'postgres' ||
+      dbClient === 'postgresql' ||
+      !!process.env.DATABASE_URL;
+
+    if (usePostgres) {
+      await ensureAssignmentRequestIdDefaultForPostgres();
+    }
+
+    const [columns] = await pool.execute<RowDataPacket[]>(
+      usePostgres
+        ? `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'assignment_requests'`
+        : `SELECT COLUMN_NAME
+           FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'assignment_requests'`
+    );
+    const existingColumns = new Set(
+      columns.map((row) =>
+        String((row as RowDataPacket).column_name || (row as RowDataPacket).COLUMN_NAME || '').toLowerCase()
+      )
+    );
+
+    const fieldValues: Record<string, unknown> = {
+      client_id: user.userId,
+      title,
+      description,
+      subject: subject || null,
+      deadline: deadline || null,
+      priority: data.priority || 'medium',
+      attachment_filename: attachment_filename || null,
+      attachment_data: attachmentBuffer,
+      attachment_size: attachmentSize,
+      created_at: new Date(),
+      updated_at: new Date(),
+      status: 'pending_review',
+    };
+
+    const insertEntries = Object.entries(fieldValues).filter(([column]) =>
+      existingColumns.has(column.toLowerCase())
+    );
+
+    if (!insertEntries.length) {
+      return NextResponse.json(
+        { error: 'No compatible columns found for assignment insert' },
+        { status: 500 }
+      );
+    }
+
+    const insertColumns = insertEntries.map(([column]) => column).join(', ');
+    const placeholders = insertEntries.map(() => '?').join(', ');
+    const values = insertEntries.map(([, value]) => value);
+
     const [result] = await pool.execute<ResultSetHeader>(
-      `INSERT INTO assignment_requests 
-       (client_id, title, description, subject, deadline, attachment_filename, attachment_data, attachment_size, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review')`,
-      [
-        user.userId,
-        title,
-        description,
-        subject || null,
-        deadline || null,
-        attachment_filename || null,
-        attachmentBuffer,
-        attachmentSize,
-      ]
+      `INSERT INTO assignment_requests (${insertColumns}) VALUES (${placeholders})`,
+      values
     );
 
     return NextResponse.json({
@@ -125,13 +201,14 @@ export async function POST(request: NextRequest) {
       message: 'Assignment request submitted successfully',
       requestId: result.insertId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorObj = error as { message?: string; code?: string };
     console.error('Error creating assignment request:', error);
     return NextResponse.json(
       { 
         error: 'Failed to create assignment request',
-        details: error.message,
-        code: error.code 
+        details: errorObj?.message || 'Unknown error',
+        code: errorObj?.code || '' 
       },
       { status: 500 }
     );

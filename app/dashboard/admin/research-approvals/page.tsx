@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { useNotifications } from '@/hooks/useNotifications';
 import { CheckCircle, XCircle, Eye, Clock, FileText, User, Download, ArrowLeft } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface ResearchPaper {
   id: number;
@@ -19,12 +21,23 @@ interface ResearchPaper {
 
 export default function ResearchApprovalsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const notifRole = pathname?.includes('/dashboard/management') ? ('management' as const) : ('admin' as const);
+  const { markCategorySeen } = useNotifications(notifRole);
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPaper, setSelectedPaper] = useState<ResearchPaper | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionError, setRejectionError] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    markCategorySeen('pendingResearchPapers');
+  }, [markCategorySeen]);
 
   useEffect(() => {
     fetchPendingPapers();
@@ -64,24 +77,31 @@ export default function ResearchApprovalsPage() {
       });
 
       if (response.ok) {
-        alert('Research paper approved and published!');
+        setNotification({ type: 'success', message: 'Research paper approved and published.' });
         setShowModal(false);
+        setRejectionReason('');
+        setRejectionError('');
         fetchPendingPapers();
+      } else {
+        const error = await response.json();
+        setNotification({ type: 'error', message: error.error || 'Failed to approve paper' });
       }
     } catch (error) {
       console.error('Error approving paper:', error);
-      alert('Failed to approve paper');
+      setNotification({ type: 'error', message: 'Failed to approve paper' });
     } finally {
       setProcessing(false);
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
   const handleReject = async (paperId: number) => {
     if (!rejectionReason.trim()) {
-      alert('Please provide a reason for rejection');
+      setRejectionError('Please provide a reason for rejection');
       return;
     }
 
+    setRejectionError('');
     setProcessing(true);
     try {
       const token = localStorage.getItem('auth-token');
@@ -98,18 +118,32 @@ export default function ResearchApprovalsPage() {
       });
 
       if (response.ok) {
-        alert('Research paper rejected. Researcher will be notified.');
+        setNotification({ type: 'success', message: 'Research paper rejected. Researcher will be notified.' });
         setShowModal(false);
         setRejectionReason('');
+        setRejectionError('');
         fetchPendingPapers();
+      } else {
+        const error = await response.json();
+        setNotification({ type: 'error', message: error.error || 'Failed to reject paper' });
       }
     } catch (error) {
       console.error('Error rejecting paper:', error);
-      alert('Failed to reject paper');
+      setNotification({ type: 'error', message: 'Failed to reject paper' });
     } finally {
       setProcessing(false);
+      setTimeout(() => setNotification(null), 3000);
     }
   };
+  const sortedPapers = [...papers].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedPapers.length / itemsPerPage));
+  const paginatedPapers = sortedPapers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [papers]);
 
   if (loading) {
     return (
@@ -125,6 +159,19 @@ export default function ResearchApprovalsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Notification */}
+        {notification && (
+          <div
+            className={`fixed top-4 right-4 z-[70] px-5 py-3 rounded-xl shadow-xl border ${
+              notification.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-red-50 text-red-900 border-red-200'
+            }`}
+          >
+            <p className="font-semibold">{notification.message}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
@@ -176,7 +223,7 @@ export default function ResearchApprovalsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {papers.map((paper) => (
+                  {paginatedPapers.map((paper) => (
                     <tr key={paper.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{paper.title}</div>
@@ -212,6 +259,13 @@ export default function ResearchApprovalsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
           </div>
         )}
@@ -290,11 +344,19 @@ export default function ResearchApprovalsPage() {
                   </label>
                   <textarea
                     value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
+                    onChange={(e) => {
+                      setRejectionReason(e.target.value);
+                      if (rejectionError) setRejectionError('');
+                    }}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                      rejectionError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="Provide feedback for the researcher..."
                   />
+                  {rejectionError && (
+                    <p className="mt-2 text-sm font-medium text-red-600">{rejectionError}</p>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -319,6 +381,7 @@ export default function ResearchApprovalsPage() {
                     onClick={() => {
                       setShowModal(false);
                       setRejectionReason('');
+                      setRejectionError('');
                     }}
                     className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
                   >

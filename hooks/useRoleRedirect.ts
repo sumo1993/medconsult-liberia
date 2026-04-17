@@ -11,6 +11,7 @@ const roleDashboardMap: Record<string, string> = {
   consultant: '/dashboard/consultant',
   researcher: '/dashboard/researcher',
   client: '/dashboard/client',
+  census: '/dashboard/field',
 };
 
 export function useRoleRedirect(expectedRole: string | string[]) {
@@ -30,10 +31,14 @@ export function useRoleRedirect(expectedRole: string | string[]) {
 
         // Fetch current user role from API
         const response = await fetch('/api/profile', {
+          cache: 'no-store',
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('auth-token');
+          }
           router.push('/login');
           return;
         }
@@ -56,8 +61,15 @@ export function useRoleRedirect(expectedRole: string | string[]) {
             router.push('/login');
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        if (error instanceof TypeError) {
+          // Temporary network/dev-server issue: don't hard-redirect to login
+          console.warn('Role check skipped (network):', error.message);
+          return;
+        }
         console.error('Role check error:', error);
+        localStorage.removeItem('auth-token');
         router.push('/login');
       } finally {
         setIsLoading(false);
@@ -69,5 +81,3 @@ export function useRoleRedirect(expectedRole: string | string[]) {
 
   return { isAuthorized, isLoading };
 }
-
-

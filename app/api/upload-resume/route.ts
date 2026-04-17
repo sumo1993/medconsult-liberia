@@ -2,27 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { existsSync } from 'fs';
+import { verifyAuth } from '@/lib/middleware';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Upload API called');
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    
-    console.log('File received:', file ? file.name : 'No file');
-    
+
     if (!file) {
-      console.error('No file in request');
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    console.log('File type:', file.type);
-    console.log('File size:', file.size);
-
-    // Validate file type
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     if (!allowedTypes.includes(file.type)) {
-      console.error('Invalid file type:', file.type);
       return NextResponse.json({ error: 'Invalid file type. Only PDF and DOC files are allowed.' }, { status: 400 });
     }
 
@@ -48,8 +44,6 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     await writeFile(filepath, buffer);
-
-    console.log('File saved successfully:', filename);
 
     return NextResponse.json({ 
       success: true, 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Clock, User, CheckCircle, XCircle, MessageSquare, Eye, FileText } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Assignment {
   id: number;
@@ -29,6 +30,8 @@ export default function ManagementAssignmentsPage() {
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchAssignments();
@@ -122,6 +125,15 @@ export default function ManagementAssignmentsPage() {
   const filteredAssignments = filter === 'all' 
     ? assignments 
     : assignments.filter(a => a.status === filter);
+  const sortedAssignments = [...filteredAssignments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedAssignments.length / itemsPerPage));
+  const paginatedAssignments = sortedAssignments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, assignments]);
 
   const stats = {
     pending: assignments.filter(a => a.status === 'pending').length,
@@ -195,7 +207,7 @@ export default function ManagementAssignmentsPage() {
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <p className="text-gray-500">Loading assignments...</p>
           </div>
-        ) : filteredAssignments.length === 0 ? (
+        ) : sortedAssignments.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <BookOpen size={64} className="mx-auto mb-4 text-gray-300" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -210,7 +222,7 @@ export default function ManagementAssignmentsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredAssignments.map((assignment) => {
+            {paginatedAssignments.map((assignment) => {
               const statusInfo = getStatusBadge(assignment.status);
               const StatusIcon = statusInfo.icon;
 
@@ -314,6 +326,13 @@ export default function ManagementAssignmentsPage() {
                 </div>
               );
             })}
+            {sortedAssignments.length > 0 && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         )}
 

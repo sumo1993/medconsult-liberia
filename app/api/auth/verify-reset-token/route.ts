@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
+import { ensureResetPasswordColumns } from '@/lib/ensureResetColumns';
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureResetPasswordColumns();
     const body = await request.json();
     const { token } = body;
 

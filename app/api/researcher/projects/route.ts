@@ -1,37 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
+
+const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+const usePostgres =
+  dbClient === 'postgres' ||
+  dbClient === 'postgresql' ||
+  !!process.env.DATABASE_URL;
 
 // Ensure table exists
 async function ensureTable() {
   try {
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS research_projects (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        title VARCHAR(255) NOT NULL,
-        description TEXT,
-        location VARCHAR(255),
-        status ENUM('active', 'completed', 'pending', 'paused') DEFAULT 'active',
-        deadline DATE,
-        target_samples INT DEFAULT 100,
-        data_collected INT DEFAULT 0,
-        created_by INT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
+    if (usePostgres) {
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS research_projects (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          location VARCHAR(255),
+          status VARCHAR(20) DEFAULT 'active',
+          deadline DATE,
+          target_samples INT DEFAULT 100,
+          data_collected INT DEFAULT 0,
+          created_by INT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS research_project_assignments (
+          id SERIAL PRIMARY KEY,
+          project_id INT NOT NULL,
+          researcher_id INT NOT NULL,
+          assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.execute(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_research_project_unique_assignment
+         ON research_project_assignments(project_id, researcher_id)`
+      );
+    } else {
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS research_projects (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          location VARCHAR(255),
+          status ENUM('active', 'completed', 'pending', 'paused') DEFAULT 'active',
+          deadline DATE,
+          target_samples INT DEFAULT 100,
+          data_collected INT DEFAULT 0,
+          created_by INT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
 
-    // Create project assignments table
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS research_project_assignments (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        project_id INT NOT NULL,
-        researcher_id INT NOT NULL,
-        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_assignment (project_id, researcher_id)
-      )
-    `);
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS research_project_assignments (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          project_id INT NOT NULL,
+          researcher_id INT NOT NULL,
+          assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY unique_assignment (project_id, researcher_id)
+        )
+      `);
+    }
 
     // Check if we have any projects
     const [existingProjects] = await pool.execute<RowDataPacket[]>(
@@ -50,9 +85,10 @@ async function ensureTable() {
       `);
       console.log('[Research Projects] Seeded sample projects');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Table might already exist with data
-    if (!error.message?.includes('Duplicate')) {
+    const message = error instanceof Error ? error.message : '';
+    if (!message.includes('Duplicate')) {
       console.error('Error ensuring research_projects table:', error);
     }
   }
@@ -84,5 +120,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 

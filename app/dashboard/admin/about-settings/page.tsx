@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Upload, User, Eye, CheckCircle, AlertCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Doctor {
   id: number;
@@ -24,6 +25,8 @@ export default function AboutSettingsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -180,6 +183,14 @@ export default function AboutSettingsPage() {
     }
   };
 
+  const sortedDoctors = [...doctors].sort((a, b) => b.id - a.id);
+  const totalPages = Math.max(1, Math.ceil(sortedDoctors.length / itemsPerPage));
+  const paginatedDoctors = sortedDoctors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [doctors]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -229,7 +240,7 @@ export default function AboutSettingsPage() {
                 Select Person to Feature
               </h2>
               <div className="grid sm:grid-cols-2 gap-3">
-                {doctors.map((doctor) => (
+                {paginatedDoctors.map((doctor) => (
                   <button
                     key={doctor.id}
                     onClick={() => selectDoctor(doctor)}
@@ -249,6 +260,13 @@ export default function AboutSettingsPage() {
                   </button>
                 ))}
               </div>
+              {sortedDoctors.length > 0 && (
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </div>
 
             {/* Edit Form */}
@@ -415,5 +433,4 @@ export default function AboutSettingsPage() {
     </div>
   );
 }
-
 

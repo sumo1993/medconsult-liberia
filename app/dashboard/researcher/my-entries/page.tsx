@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ClipboardList, Search, Calendar, MapPin, Plus, Eye, Trash2 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 
 interface DataEntry {
   id: number;
@@ -21,6 +22,8 @@ export default function MyEntriesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEntry, setSelectedEntry] = useState<DataEntry | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchEntries();
@@ -54,6 +57,11 @@ export default function MyEntriesPage() {
     entry.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     entry.entry_type?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const sortedEntries = [...filteredEntries].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedEntries.length / itemsPerPage));
+  const paginatedEntries = sortedEntries.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const entryTypeLabels: { [key: string]: string } = {
     patient_data: 'Patient Data',
@@ -63,6 +71,10 @@ export default function MyEntriesPage() {
     demographic: 'Demographic Data',
     custom: 'Custom Entry',
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [entries, searchQuery]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -149,7 +161,7 @@ export default function MyEntriesPage() {
             <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading entries...</p>
           </div>
-        ) : filteredEntries.length === 0 ? (
+        ) : sortedEntries.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm">
             <ClipboardList className="mx-auto mb-4 text-gray-300" size={64} />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Entries Yet</h3>
@@ -167,7 +179,7 @@ export default function MyEntriesPage() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredEntries.map((entry) => (
+            {paginatedEntries.map((entry) => (
               <div
                 key={entry.id}
                 className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-emerald-200 transition-all"
@@ -214,6 +226,15 @@ export default function MyEntriesPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {!loading && sortedEntries.length > 0 && (
+          <div className="mt-6">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
 
@@ -267,4 +288,3 @@ export default function MyEntriesPage() {
     </div>
   );
 }
-

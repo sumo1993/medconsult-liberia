@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Download, Search, Filter, Calendar, User } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Material {
   id: number;
@@ -27,6 +28,8 @@ export default function ClientMaterialsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchMaterials();
@@ -114,6 +117,15 @@ export default function ClientMaterialsPage() {
   };
 
   const categories = ['all', ...Array.from(new Set(materials.map((m) => m.category)))];
+  const sortedMaterials = [...filteredMaterials].sort(
+    (a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedMaterials.length / itemsPerPage));
+  const paginatedMaterials = sortedMaterials.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredMaterials, searchTerm, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,7 +187,7 @@ export default function ClientMaterialsPage() {
           <div className="text-center py-12">
             <p className="text-gray-500">Loading materials...</p>
           </div>
-        ) : filteredMaterials.length === 0 ? (
+        ) : sortedMaterials.length === 0 ? (
           <div className="text-center py-12">
             <FileText size={64} className="mx-auto mb-4 text-gray-300" />
             <p className="text-gray-500 text-lg">No materials found</p>
@@ -187,7 +199,7 @@ export default function ClientMaterialsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMaterials.map((material) => (
+            {paginatedMaterials.map((material) => (
               <div
                 key={material.id}
                 className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6"
@@ -242,6 +254,15 @@ export default function ClientMaterialsPage() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+        {!loading && sortedMaterials.length > 0 && (
+          <div className="mt-6">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </main>

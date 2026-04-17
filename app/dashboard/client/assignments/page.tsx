@@ -6,6 +6,8 @@ import {
   FileText, Clock, CheckCircle, XCircle, Plus, Search, Filter,
   DollarSign, Upload, Eye, Download, MessageSquare, AlertCircle, ArrowLeft
 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface AssignmentRequest {
   id: number;
@@ -25,20 +27,57 @@ interface AssignmentRequest {
   price_proposed_at: string | null;
   final_submission_filename: string | null;
   client_review_status: string | null;
+  updated_at?: string | null;
+}
+
+function getRecentTimestamp(req: AssignmentRequest): number {
+  const updated = req.updated_at ? Date.parse(req.updated_at) : NaN;
+  if (Number.isFinite(updated)) return updated;
+
+  const created = req.created_at ? Date.parse(req.created_at) : NaN;
+  if (Number.isFinite(created)) return created;
+
+  return 0;
+}
+
+function sortNewestFirst<T extends AssignmentRequest>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    const byId = Number(b.id || 0) - Number(a.id || 0);
+    if (byId !== 0) return byId;
+    const byDate = getRecentTimestamp(b) - getRecentTimestamp(a);
+    if (byDate !== 0) return byDate;
+    return 0;
+  });
+}
+
+function formatSubmittedDate(req: AssignmentRequest): string {
+  const updated = req.updated_at ? Date.parse(req.updated_at) : NaN;
+  if (Number.isFinite(updated)) {
+    return new Date(updated).toLocaleDateString();
+  }
+
+  const created = req.created_at ? Date.parse(req.created_at) : NaN;
+  if (Number.isFinite(created)) {
+    return new Date(created).toLocaleDateString();
+  }
+
+  return 'Unknown';
 }
 
 export default function ClientAssignmentsPage() {
   const router = useRouter();
+  const { markCategorySeen } = useNotifications('client');
   const [requests, setRequests] = useState<AssignmentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'date' | 'price' | 'deadline'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+    markCategorySeen('unreadAssignmentMessages');
+  }, [markCategorySeen]);
 
   const fetchRequests = async () => {
     try {
@@ -57,10 +96,20 @@ export default function ClientAssignmentsPage() {
         const data = await response.json();
         console.log('[Client Assignments] Received data:', data);
         console.log('[Client Assignments] Number of assignments:', data.length);
-        setRequests(data);
+        setRequests(sortNewestFirst(data));
       } else {
-        const errorData = await response.json();
-        console.error('[Client Assignments] Error response:', errorData);
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch {
+          const rawText = await response.text().catch(() => '');
+          errorData = { error: rawText || 'Unknown error' };
+        }
+        console.error('[Client Assignments] Error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          ...errorData,
+        });
       }
     } catch (error) {
       console.error('[Client Assignments] Error fetching requests:', error);
@@ -148,8 +197,9 @@ export default function ClientAssignmentsPage() {
     return statusMap[status] || statusMap.pending_review;
   };
 
-  // Filter, search, and sort requests
-  const filteredRequests = requests
+  // Filter, search, and keep newest-to-oldest order
+  const filteredRequests = sortNewestFirst(
+    requests
     .filter(req => {
       // Status filter
       if (filter === 'all') return true;
@@ -169,26 +219,15 @@ export default function ClientAssignmentsPage() {
         (req.doctor_name && req.doctor_name.toLowerCase().includes(search))
       );
     })
-    .sort((a, b) => {
-      // Sorting
-      let comparison = 0;
-      
-      if (sortBy === 'date') {
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else if (sortBy === 'price') {
-        const priceA = a.final_price || a.proposed_price || 0;
-        const priceB = b.final_price || b.proposed_price || 0;
-        comparison = priceA - priceB;
-      } else if (sortBy === 'deadline') {
-        const deadlineA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-        const deadlineB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-        comparison = deadlineA - deadlineB;
-      }
-      
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / itemsPerPage));
+  const paginatedRequests = filteredRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const actionRequiredCount = requests.filter(r => ['price_proposed', 'payment_pending'].includes(r.status)).length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchTerm, requests]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -224,7 +263,7 @@ export default function ClientAssignmentsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Required Alert */}
         {actionRequiredCount > 0 && (
-          <div className="mb-6 bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+          <div className="mb-6 bg-orange-50 p-4 rounded-lg">
             <div className="flex items-center">
               <AlertCircle className="text-orange-500 mr-3" size={24} />
               <div>
@@ -267,24 +306,9 @@ export default function ClientAssignmentsPage() {
             </div>
 
             {/* Sort */}
-            <div className="flex gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'date' | 'price' | 'deadline')}
-                className="flex-1 px-3 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-medium"
-                aria-label="Sort by"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="price">Sort by Price</option>
-                <option value="deadline">Sort by Deadline</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="px-4 py-3 border-2 border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-500 transition-all font-bold text-lg"
-                aria-label={`Sort order: ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
-              >
-                {sortOrder === 'asc' ? '↑' : '↓'}
-              </button>
+            <div className="flex items-center px-4 py-3 border-2 border-gray-200 rounded-lg bg-gray-50">
+              <Filter className="text-gray-500 mr-2" size={18} aria-hidden="true" />
+              <span className="text-sm font-medium text-gray-700">Sorted: Newest to Oldest</span>
             </div>
           </div>
         </div>
@@ -393,7 +417,7 @@ export default function ClientAssignmentsPage() {
         {/* Requests List */}
         {!loading && filteredRequests.length > 0 && (
           <div className="space-y-4">
-            {filteredRequests.map((request) => {
+            {paginatedRequests.map((request) => {
               const statusInfo = getStatusInfo(request.status);
               const StatusIcon = statusInfo.icon;
               const needsAction = ['price_proposed', 'payment_pending'].includes(request.status);
@@ -482,7 +506,7 @@ export default function ClientAssignmentsPage() {
                         )}
                       </div>
                       <span className="text-xs text-gray-500">
-                        Submitted {new Date(request.created_at).toLocaleDateString()}
+                        Submitted {formatSubmittedDate(request)}
                       </span>
                     </div>
 
@@ -494,6 +518,11 @@ export default function ClientAssignmentsPage() {
                 </article>
               );
             })}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </main>

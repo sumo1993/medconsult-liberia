@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, FileText, Trash2, Download, Calendar, User, CheckCircle, XCircle, X } from 'lucide-react';
+import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, XCircle, X, AlertTriangle } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Material {
   id: number;
@@ -26,7 +27,11 @@ export default function ManagementMaterialsPage() {
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [materialToDelete, setMaterialToDelete] = useState<Material | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   
   const [formData, setFormData] = useState({
     title: '',
@@ -71,11 +76,15 @@ export default function ManagementMaterialsPage() {
       uploadFormData.append('category', formData.category);
       uploadFormData.append('file', formData.file);
 
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/materials', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
+        credentials: 'include',
         body: uploadFormData,
       });
 
@@ -85,8 +94,18 @@ export default function ManagementMaterialsPage() {
         setFormData({ title: '', description: '', category: 'General', file: null });
         fetchMaterials();
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload material');
+        const contentType = response.headers.get('content-type') || '';
+        let errorMessage = `Failed to upload material (HTTP ${response.status})`;
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.details || errorData.error || errorMessage;
+        } else {
+          const text = await response.text();
+          if (text) {
+            errorMessage = `${errorMessage}: ${text.slice(0, 180)}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       console.error('Error uploading material:', error);
@@ -97,20 +116,24 @@ export default function ManagementMaterialsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this material?')) return;
-
+  const handleDelete = async () => {
+    if (!materialToDelete) return;
+    setDeleting(true);
     try {
       const token = localStorage.getItem('auth-token');
-      const response = await fetch(`/api/materials/${id}`, {
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/materials/${materialToDelete.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
+        credentials: 'include',
       });
 
       if (response.ok) {
         setNotification({ type: 'success', message: 'Material deleted successfully!' });
+        setMaterialToDelete(null);
         fetchMaterials();
       } else {
         throw new Error('Failed to delete material');
@@ -119,6 +142,7 @@ export default function ManagementMaterialsPage() {
       console.error('Error deleting material:', error);
       setNotification({ type: 'error', message: 'Failed to delete material' });
     } finally {
+      setDeleting(false);
       setTimeout(() => setNotification(null), 3000);
     }
   };
@@ -132,6 +156,15 @@ export default function ManagementMaterialsPage() {
   };
 
   const totalDownloads = materials.reduce((sum, m) => sum + m.downloads, 0);
+  const sortedMaterials = [...materials].sort(
+    (a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedMaterials.length / itemsPerPage));
+  const paginatedMaterials = sortedMaterials.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [materials]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -224,7 +257,7 @@ export default function ManagementMaterialsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {materials.map((material) => (
+                {paginatedMaterials.map((material) => (
                   <tr key={material.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center">
@@ -254,7 +287,7 @@ export default function ManagementMaterialsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => handleDelete(material.id)}
+                        onClick={() => setMaterialToDelete(material)}
                         className="text-red-600 hover:text-red-900"
                       >
                         <Trash2 size={18} />
@@ -264,6 +297,13 @@ export default function ManagementMaterialsPage() {
                 ))}
               </tbody>
             </table>
+            <div className="px-6 py-4 border-t border-gray-100">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           </div>
         )}
       </main>
@@ -362,6 +402,45 @@ export default function ManagementMaterialsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {materialToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="mt-0.5 rounded-full bg-red-100 p-2.5">
+                  <AlertTriangle className="text-red-700" size={20} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900">Delete Material?</h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    This will permanently remove <span className="font-medium text-slate-800">{materialToDelete.title}</span>.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setMaterialToDelete(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-slate-700 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -13,21 +13,68 @@ export default function ClientMessagesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const getCurrentUser = async () => {
+    const token = localStorage.getItem('auth-token');
+    const raw = localStorage.getItem('user');
+    let localUser: { full_name?: string; email?: string } | null = null;
+    if (raw) {
+      try {
+        localUser = JSON.parse(raw);
+      } catch {}
+    }
+
+    if (localUser?.email && localUser?.full_name) {
+      return localUser;
+    }
+
+    if (!token) return localUser;
+
+    try {
+      const response = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          full_name: data?.full_name || localUser?.full_name || 'Client',
+          email: data?.email || localUser?.email || '',
+        };
+      }
+    } catch (error) {
+      console.error('Failed to fetch user profile for contact form:', error);
+    }
+
+    return localUser;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
 
     try {
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
+      const token = localStorage.getItem('auth-token');
+      const user = await getCurrentUser();
+      const email = user?.email || '';
+
+      if (!email) {
+        setSubmitStatus({
+          type: 'error',
+          message: 'Your email is missing from profile. Please update profile first.',
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       const response = await fetch('/api/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           name: user?.full_name || 'Client',
-          email: user?.email || '',
+          email,
           subject: formData.subject,
           message: formData.message,
         }),
@@ -40,12 +87,13 @@ export default function ClientMessagesPage() {
         });
         setFormData({ subject: '', message: '' });
       } else {
+        const err = await response.json().catch(() => ({ error: 'Failed to send message. Please try again.' }));
         setSubmitStatus({
           type: 'error',
-          message: 'Failed to send message. Please try again.',
+          message: err.error || 'Failed to send message. Please try again.',
         });
       }
-    } catch (error) {
+    } catch {
       setSubmitStatus({
         type: 'error',
         message: 'Network error. Please check your connection.',
@@ -122,7 +170,16 @@ export default function ClientMessagesPage() {
                     ? 'bg-green-50 border border-green-200 text-green-800' 
                     : 'bg-red-50 border border-red-200 text-red-800'
                 }`}>
-                  {submitStatus.message}
+                  <p>{submitStatus.message}</p>
+                  {submitStatus.type === 'success' && (
+                    <button
+                      type="button"
+                      onClick={() => router.push('/dashboard/client/inbox')}
+                      className="mt-3 inline-flex items-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+                    >
+                      Open Inbox
+                    </button>
+                  )}
                 </div>
               )}
 

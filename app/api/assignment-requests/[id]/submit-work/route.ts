@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
+import { RowDataPacket } from 'mysql2';
+
+interface WorkFileRow extends RowDataPacket {
+  work_file_data: Buffer | null;
+  work_filename: string | null;
+  work_file_type: string | null;
+}
 
 export async function POST(
   request: NextRequest,
@@ -16,15 +23,31 @@ export async function POST(
 
     console.log('[Submit Work] User:', user.email, 'Role:', user.role);
 
-    // Only doctors/admins can submit work
-    if (user.role !== 'management' && user.role !== 'admin') {
-      console.log('[Submit Work] User not authorized - not a consultant');
+    // Allow assigned consultant (primary), plus admin/management overrides.
+    if (user.role !== 'consultant' && user.role !== 'management' && user.role !== 'admin') {
+      console.log('[Submit Work] User not authorized - invalid role for submission');
       return NextResponse.json({ error: 'Only consultants can submit work' }, { status: 403 });
     }
 
     const params = await context.params;
     const requestId = parseInt(params.id);
     console.log('[Submit Work] Assignment ID:', requestId);
+
+    // Verify assignment ownership/authorization
+    const [assignments] = await pool.execute<RowDataPacket[]>(
+      'SELECT id, consultant_id, doctor_id, status FROM assignment_requests WHERE id = ?',
+      [requestId]
+    );
+    if (assignments.length === 0) {
+      return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    }
+    const assignment = assignments[0];
+    const isAssignedConsultant =
+      assignment.consultant_id === user.userId || assignment.doctor_id === user.userId;
+    const isManagementOrAdmin = user.role === 'management' || user.role === 'admin';
+    if (!isAssignedConsultant && !isManagementOrAdmin) {
+      return NextResponse.json({ error: 'You are not assigned to this assignment' }, { status: 403 });
+    }
     
     const body = await request.json();
     const { fileData, filename, notes } = body;
@@ -54,7 +77,11 @@ export async function POST(
            work_file_size = ?, 
            work_file_type = ?,
            work_submitted_at = NOW(),
-           work_notes = ?
+           work_notes = ?,
+           status = CASE
+             WHEN status IN ('assigned', 'payment_verified', 'payment_uploaded') THEN 'in_progress'
+             ELSE status
+           END
        WHERE id = ?`,
       [fileBuffer, filename, fileSize, fileType, notes || null, requestId]
     );
@@ -78,12 +105,15 @@ export async function POST(
       filename,
       size: fileSize
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Submit Work] Error:', error);
-    console.error('[Submit Work] Error message:', error.message);
-    console.error('[Submit Work] Error stack:', error.stack);
+    if (error instanceof Error) {
+      console.error('[Submit Work] Error message:', error.message);
+      console.error('[Submit Work] Error stack:', error.stack);
+    }
     return NextResponse.json(
-      { error: 'Failed to submit work: ' + error.message },
+      { error: 'Failed to submit work: ' + message },
       { status: 500 }
     );
   }
@@ -104,18 +134,18 @@ export async function GET(
     const requestId = parseInt(params.id);
 
     // Get the work file
-    const [rows] = await pool.execute(
+    const [rows] = await pool.execute<WorkFileRow[]>(
       `SELECT work_file_data, work_filename, work_file_type, work_submitted_at, work_notes
        FROM assignment_requests
        WHERE id = ?`,
       [requestId]
     );
 
-    if (!rows || (rows as any[]).length === 0) {
+    if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
     }
 
-    const assignment = (rows as any[])[0];
+    const assignment = rows[0];
 
     if (!assignment.work_file_data) {
       return NextResponse.json({ error: 'No work file submitted yet' }, { status: 404 });

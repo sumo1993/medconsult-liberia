@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, logActivity } from '@/lib/auth';
 import { sign } from 'jsonwebtoken';
-import pool from '@/lib/db';
-import { RowDataPacket } from 'mysql2';
+import { rateLimit } from '@/lib/rate-limit';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set.');
+}
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, { limit: 10, windowMs: 60_000, prefix: 'login' });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const rawEmail = String(body?.email || '');
+    const email = rawEmail
+      .trim()
+      .replace(/＠/g, '@')
+      .replace(/[。．｡]/g, '.')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    const password = String(body?.password || '');
 
     if (!email || !password) {
       return NextResponse.json(
@@ -18,47 +30,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user exists first (to provide better error messages)
-    const [userCheck] = await pool.execute<RowDataPacket[]>(
-      'SELECT id, email, status FROM users WHERE email = ?',
-      [email]
-    );
+    const auth = await authenticateUser(email, password);
 
-    if (userCheck.length > 0) {
-      const userStatus = userCheck[0].status;
-      
-      // If account is suspended or inactive, provide specific message
-      if (userStatus === 'suspended') {
-        console.log(`[Login] Blocked suspended user: ${email}`);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
         return NextResponse.json(
-          { 
+          {
             error: 'Your account has been suspended. Please contact support for assistance.',
-            accountStatus: 'suspended'
+            accountStatus: 'suspended',
           },
           { status: 403 }
         );
       }
-      
-      if (userStatus === 'inactive') {
-        console.log(`[Login] Blocked inactive user: ${email}`);
+      if (auth.reason === 'inactive') {
         return NextResponse.json(
-          { 
+          {
             error: 'Your account is inactive. Please contact support to reactivate.',
-            accountStatus: 'inactive'
+            accountStatus: 'inactive',
           },
           { status: 403 }
         );
       }
-    }
-
-    const user = await authenticateUser(email, password);
-
-    if (!user) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        {
+          error: 'Invalid email or password',
+          ...(process.env.NODE_ENV !== 'production' ? { debug: { email } } : {}),
+        },
         { status: 401 }
       );
     }
+
+    const user = auth.user;
 
     // Create JWT token
     const token = sign(
@@ -71,15 +73,12 @@ export async function POST(request: NextRequest) {
       { expiresIn: '7d' }
     );
 
-    // Log activity
-    await logActivity(
-      user.id,
-      'login',
-      'user',
-      user.id,
-      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-      request.headers.get('user-agent') || undefined
-    );
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      undefined;
+    const ua = request.headers.get('user-agent') || undefined;
+    void logActivity(user.id, 'login', 'user', user.id, ip, ua);
 
     const response = NextResponse.json(
       {
@@ -99,30 +98,17 @@ export async function POST(request: NextRequest) {
     // Also try to set cookie as fallback
     response.cookies.set('auth-token', token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
 
-    console.log('Login successful, token sent for user:', user.email);
-
     return response;
   } catch (error) {
-    console.error('Login error:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      dbHost: process.env.DB_HOST,
-      dbPort: process.env.DB_PORT,
-      dbUser: process.env.DB_USER,
-      dbName: process.env.DB_NAME,
-    });
+    console.error('Login error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
-      { 
-        error: 'Login failed. Please try again.',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Login failed. Please try again.' },
       { status: 500 }
     );
   }

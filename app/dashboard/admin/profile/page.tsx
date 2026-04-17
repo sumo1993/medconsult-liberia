@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Lock, Save, Eye, EyeOff } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import Toast from '@/components/Toast';
 
 export default function AdminProfilePage() {
   const router = useRouter();
@@ -143,13 +144,13 @@ export default function AdminProfilePage() {
         </div>
       </header>
 
-      {/* Notification */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-md shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white`}>
-          {notification.message}
-        </div>
+        <Toast
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+          duration={4000}
+        />
       )}
 
       {/* Main Content */}

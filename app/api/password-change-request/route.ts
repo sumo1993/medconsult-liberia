@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import bcrypt from 'bcryptjs';
+import { RowDataPacket } from 'mysql2';
+
+async function ensurePasswordChangeLockColumn(): Promise<boolean> {
+  try {
+    const [columns] = await pool.execute<RowDataPacket[]>(
+      `SHOW COLUMNS FROM users LIKE 'password_change_locked'`
+    );
+    if (columns.length > 0) {
+      return true;
+    }
+
+    await pool.execute(
+      `ALTER TABLE users ADD COLUMN password_change_locked TINYINT(1) NOT NULL DEFAULT 0`
+    );
+    return true;
+  } catch (error) {
+    console.error('Error ensuring password_change_locked column:', error);
+    return false;
+  }
+}
 
 // Create password_change_requests table if it doesn't exist
 async function ensureTable() {
@@ -33,6 +53,7 @@ async function ensureTable() {
 export async function POST(request: NextRequest) {
   try {
     await ensureTable();
+    const hasPasswordLockColumn = await ensurePasswordChangeLockColumn();
     
     const user = await verifyAuth(request);
     if (!user) {
@@ -52,6 +73,23 @@ export async function POST(request: NextRequest) {
 
     if (newPassword.length < 6) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    }
+
+    const [userRows]: any = await pool.execute(
+      `SELECT ${hasPasswordLockColumn ? 'password_change_locked' : '0 AS password_change_locked'}
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
+      [user.userId]
+    );
+    if (!userRows.length) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (userRows[0].password_change_locked) {
+      return NextResponse.json(
+        { error: 'Password change is disabled by admin for this account' },
+        { status: 403 }
+      );
     }
 
     // Hash the new password
@@ -124,6 +162,8 @@ export async function GET(request: NextRequest) {
 // PUT - Approve/Reject password change request (admin only)
 export async function PUT(request: NextRequest) {
   try {
+    const hasPasswordLockColumn = await ensurePasswordChangeLockColumn();
+
     const user = await verifyAuth(request);
     if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -148,9 +188,26 @@ export async function PUT(request: NextRequest) {
     const passwordRequest = requests[0];
 
     if (action === 'approve') {
+      const [targetUserRows]: any = await pool.execute(
+        `SELECT ${hasPasswordLockColumn ? 'password_change_locked' : '0 AS password_change_locked'}
+         FROM users
+         WHERE id = ?
+         LIMIT 1`,
+        [passwordRequest.user_id]
+      );
+      if (!targetUserRows.length) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      if (targetUserRows[0].password_change_locked) {
+        return NextResponse.json(
+          { error: 'Cannot approve: this user is blocked from changing password' },
+          { status: 403 }
+        );
+      }
+
       // Update user's password
       await pool.execute(
-        `UPDATE users SET password = ? WHERE id = ?`,
+        `UPDATE users SET password_hash = ? WHERE id = ?`,
         [passwordRequest.new_password_hash, passwordRequest.user_id]
       );
     }

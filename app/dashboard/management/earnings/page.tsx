@@ -6,6 +6,7 @@ import {
   ArrowLeft, DollarSign, TrendingUp, TrendingDown, Calendar, 
   Download, Filter, CreditCard, Clock, CheckCircle, Wallet
 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface EarningsSummary {
   thisMonth: number;
@@ -37,11 +38,17 @@ export default function EarningsPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchEarnings();
     fetchPaymentHistory();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterMonth, paymentHistory]);
 
   const fetchEarnings = async () => {
     try {
@@ -112,6 +119,11 @@ export default function EarningsPage() {
     }
     return true;
   });
+  const sortedPayments = [...filteredPayments].sort(
+    (a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedPayments.length / itemsPerPage));
+  const paginatedPayments = sortedPayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -248,7 +260,7 @@ export default function EarningsPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading payment history...</p>
             </div>
-          ) : filteredPayments.length === 0 ? (
+          ) : sortedPayments.length === 0 ? (
             <div className="text-center py-12">
               <DollarSign className="mx-auto text-gray-300 mb-4" size={64} />
               <h3 className="text-xl font-bold text-gray-900 mb-2">No payments yet</h3>
@@ -280,7 +292,7 @@ export default function EarningsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredPayments.map((payment) => (
+                  {paginatedPayments.map((payment) => (
                     <tr 
                       key={payment.id} 
                       className="hover:bg-gray-50 cursor-pointer"
@@ -315,6 +327,15 @@ export default function EarningsPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && sortedPayments.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={sortedPayments.length}
+              itemsPerPage={itemsPerPage}
+            />
           )}
         </div>
       </main>

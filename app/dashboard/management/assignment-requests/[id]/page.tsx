@@ -120,6 +120,7 @@ export default function DoctorAssignmentDetailPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState<number | null>(null);
   const [assigningConsultant, setAssigningConsultant] = useState(false);
+  const [assignError, setAssignError] = useState('');
 
   // Consultant applications
   interface Application {
@@ -183,6 +184,20 @@ export default function DoctorAssignmentDetailPage() {
       return () => clearInterval(interval);
     }
   }, [params.id, router]);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+
+    // Prefer current assignment, otherwise auto-pick the first available consultant.
+    if (request?.consultant_id) {
+      setSelectedConsultant(request.consultant_id);
+      return;
+    }
+
+    if (!selectedConsultant && consultants.length > 0) {
+      setSelectedConsultant(consultants[0].id);
+    }
+  }, [showAssignModal, consultants, request?.consultant_id, selectedConsultant]);
 
   const fetchConsultants = async () => {
     try {
@@ -253,6 +268,7 @@ export default function DoctorAssignmentDetailPage() {
       return;
     }
 
+    setAssignError('');
     setAssigningConsultant(true);
     try {
       const token = localStorage.getItem('auth-token');
@@ -263,6 +279,7 @@ export default function DoctorAssignmentDetailPage() {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ consultantId: selectedConsultant }),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -270,14 +287,19 @@ export default function DoctorAssignmentDetailPage() {
         showNotification('success', data.message || 'Consultant assigned successfully!');
         setShowAssignModal(false);
         setSelectedConsultant(null);
+        setAssignError('');
         fetchRequest();
         fetchMessages();
       } else {
         const error = await response.json();
-        showNotification('error', error.error || 'Failed to assign consultant');
+        const errorMessage = error.error || error.details || 'Failed to assign consultant';
+        setAssignError(errorMessage);
+        showNotification('error', errorMessage);
       }
-    } catch (error) {
-      showNotification('error', 'Network error');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Network error';
+      setAssignError(errorMessage);
+      showNotification('error', errorMessage);
     } finally {
       setAssigningConsultant(false);
     }
@@ -797,7 +819,7 @@ export default function DoctorAssignmentDetailPage() {
 
       {/* Notification */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
+        <div className={`fixed top-4 right-4 z-[70] px-6 py-4 rounded-lg shadow-lg ${
           notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
         } text-white`}>
           {notification.message}
@@ -1582,7 +1604,10 @@ export default function DoctorAssignmentDetailPage() {
                 {/* Assign to Consultant Button - Available for most statuses except completed */}
                 {request.status !== 'completed' && (
                   <button
-                    onClick={() => setShowAssignModal(true)}
+                    onClick={() => {
+                      setAssignError('');
+                      setShowAssignModal(true);
+                    }}
                     className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                   >
                     {request.consultant_id ? 'Reassign Consultant' : 'Assign to Consultant'}
@@ -1840,6 +1865,11 @@ export default function DoctorAssignmentDetailPage() {
                   ))}
                 </div>
               )}
+              {assignError && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {assignError}
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 px-6 py-4 flex space-x-3 rounded-b-xl">
@@ -1847,6 +1877,7 @@ export default function DoctorAssignmentDetailPage() {
                 onClick={() => {
                   setShowAssignModal(false);
                   setSelectedConsultant(null);
+                  setAssignError('');
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >

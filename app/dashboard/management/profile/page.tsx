@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Save, User, GraduationCap, Briefcase, Lock, Eye, EyeOff } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import Toast from '@/components/Toast';
 
 export default function ManagementProfilePage() {
   const router = useRouter();
@@ -247,11 +248,12 @@ export default function ManagementProfilePage() {
       </header>
 
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white`}>
-          {notification.message}
-        </div>
+        <Toast
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+          duration={5000}
+        />
       )}
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

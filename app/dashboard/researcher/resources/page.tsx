@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Download, ExternalLink, BookOpen, Video, File, Search } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Resource {
   id: number;
@@ -22,6 +23,8 @@ export default function ResourcesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const categories = ['all', 'Guidelines', 'Training', 'Forms', 'Templates', 'Videos'];
 
@@ -61,6 +64,15 @@ export default function ResourcesPage() {
     const matchesCategory = selectedCategory === 'all' || resource.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+  const sortedResources = [...filteredResources].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedResources.length / itemsPerPage));
+  const paginatedResources = sortedResources.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, resources]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -124,7 +136,7 @@ export default function ResourcesPage() {
             <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading resources...</p>
           </div>
-        ) : filteredResources.length === 0 ? (
+        ) : sortedResources.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm">
             <BookOpen className="mx-auto mb-4 text-gray-300" size={64} />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Resources Found</h3>
@@ -136,7 +148,7 @@ export default function ResourcesPage() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredResources.map((resource) => {
+            {paginatedResources.map((resource) => {
               const Icon = getIcon(resource.type);
               return (
                 <div
@@ -193,9 +205,15 @@ export default function ResourcesPage() {
             })}
           </div>
         )}
+        {!loading && sortedResources.length > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </main>
     </div>
   );
 }
-
 

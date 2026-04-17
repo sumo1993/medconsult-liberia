@@ -15,7 +15,7 @@ interface Assignment {
   description: string;
   status: string;
   deadline: string | null;
-  final_price: number | null;
+  final_price: number | string | null;
   currency: string;
   client_name: string;
   client_email: string;
@@ -24,6 +24,11 @@ interface Assignment {
   work_filename: string | null;
   work_submitted_at: string | null;
   has_attachment: boolean;
+  final_submission_filename: string | null;
+  final_submitted_at: string | null;
+  final_submission_notes: string | null;
+  client_review_status: 'pending' | 'accepted' | 'rejected' | null;
+  client_review_notes: string | null;
 }
 
 interface Message {
@@ -59,12 +64,21 @@ export default function ConsultantAssignmentDetailPage() {
   const [workNotes, setWorkNotes] = useState('');
   const [uploadingWork, setUploadingWork] = useState(false);
   const workFileInputRef = useRef<HTMLInputElement>(null);
+  const [finalFile, setFinalFile] = useState<File | null>(null);
+  const [finalNotes, setFinalNotes] = useState('');
+  const [uploadingFinal, setUploadingFinal] = useState(false);
+  const finalFileInputRef = useRef<HTMLInputElement>(null);
 
   // File viewer
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [viewerFile, setViewerFile] = useState<{url: string; filename: string; type: string} | null>(null);
 
   const professionalEmojis = ['👍', '👏', '✅', '📄', '📊', '💼', '🎯', '⭐', '🔔', '📌', '✏️', '📝', '🙏', '💡', '🚀', '⏰', '📅', '✔️'];
+
+  const formatPrice = (value: number | string | null | undefined) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+  };
 
   useEffect(() => {
     if (params.id) {
@@ -202,6 +216,52 @@ export default function ConsultantAssignmentDetailPage() {
     }
   };
 
+  const handleSubmitFinal = async () => {
+    if (!finalFile) {
+      showNotification('error', 'Please select the final work file');
+      return;
+    }
+
+    setUploadingFinal(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const reader = new FileReader();
+      const fileData = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(finalFile);
+      });
+
+      const response = await fetch(`/api/assignment-requests/${params.id}/submit-final`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          fileData,
+          filename: finalFile.name,
+          notes: finalNotes,
+        }),
+      });
+
+      if (response.ok) {
+        showNotification('success', 'Final work submitted to client for review!');
+        setFinalFile(null);
+        setFinalNotes('');
+        fetchAssignment();
+        fetchMessages();
+      } else {
+        const data = await response.json();
+        showNotification('error', data.error || 'Failed to submit final work');
+      }
+    } catch (error: any) {
+      showNotification('error', 'Failed to submit final work: ' + error.message);
+    } finally {
+      setUploadingFinal(false);
+    }
+  };
+
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
@@ -308,11 +368,11 @@ export default function ConsultantAssignmentDetailPage() {
                     <span className="font-medium">{formatDate(assignment.deadline)}</span>
                   </div>
                 )}
-                {assignment.final_price && (
+                {assignment.final_price !== null && assignment.final_price !== undefined && (
                   <div className="flex items-center gap-2 text-sm">
                     <DollarSign className="text-gray-400" size={18} />
                     <span className="text-gray-600">Payment:</span>
-                    <span className="font-medium">{assignment.currency} {assignment.final_price.toFixed(2)}</span>
+                    <span className="font-medium">{assignment.currency} {formatPrice(assignment.final_price)}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-sm">
@@ -365,6 +425,83 @@ export default function ConsultantAssignmentDetailPage() {
                     className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium"
                   >
                     {uploadingWork ? 'Uploading...' : 'Submit Work'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Final Submission to Client */}
+            {assignment.status !== 'completed' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <CheckCircle className="text-green-600" size={20} />
+                  Submit Final Work to Client
+                </h3>
+
+                {assignment.final_submission_filename && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-xs font-semibold text-blue-900 mb-1">Previously Submitted:</p>
+                    <p className="text-sm text-blue-700 truncate mb-2">{assignment.final_submission_filename}</p>
+                    {assignment.final_submitted_at && (
+                      <p className="text-xs text-blue-600 mb-2">
+                        {new Date(assignment.final_submitted_at).toLocaleString()}
+                      </p>
+                    )}
+                    {assignment.client_review_status && (
+                      <div className="mb-2">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                          assignment.client_review_status === 'accepted' ? 'bg-green-100 text-green-800' :
+                          assignment.client_review_status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {assignment.client_review_status === 'accepted' ? 'Accepted by Client' :
+                           assignment.client_review_status === 'rejected' ? 'Revision Requested' :
+                           'Pending Client Review'}
+                        </span>
+                        {assignment.client_review_notes && (
+                          <p className="text-xs text-gray-700 mt-2 bg-white p-2 rounded">
+                            <strong>Client feedback:</strong> {assignment.client_review_notes}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <input
+                      ref={finalFileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,.zip,.rar"
+                      onChange={(e) => setFinalFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => finalFileInputRef.current?.click()}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50"
+                    >
+                      <Upload className="text-gray-500" size={20} />
+                      <span className="text-gray-600">
+                        {finalFile ? finalFile.name : 'Select final file to submit to client'}
+                      </span>
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={finalNotes}
+                    onChange={(e) => setFinalNotes(e.target.value)}
+                    placeholder="Add final notes for the client..."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                  />
+
+                  <button
+                    onClick={handleSubmitFinal}
+                    disabled={!finalFile || uploadingFinal}
+                    className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
+                  >
+                    {uploadingFinal ? 'Submitting Final Work...' : 'Submit Final Work'}
                   </button>
                 </div>
               </div>
@@ -519,4 +656,3 @@ export default function ConsultantAssignmentDetailPage() {
     </div>
   );
 }
-

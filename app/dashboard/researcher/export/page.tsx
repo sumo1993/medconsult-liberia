@@ -4,11 +4,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, FileSpreadsheet, FileText, CheckCircle, Loader2 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
+import Toast from '@/components/Toast';
 
 export default function ExportPage() {
   const router = useRouter();
   const [exporting, setExporting] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const handleExport = async (type: string, format: string) => {
     const key = `${type}-${format}`;
@@ -47,7 +52,7 @@ export default function ExportPage() {
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export data. Please try again.');
+      setToast({ message: 'Failed to export data. Please try again.', type: 'error' });
     } finally {
       setExporting(null);
       setTimeout(() => setSuccess(null), 3000);
@@ -70,9 +75,18 @@ export default function ExportPage() {
       color: 'bg-blue-500',
     },
   ];
+  const totalPages = Math.max(1, Math.ceil(exportOptions.length / itemsPerPage));
+  const paginatedExportOptions = exportOptions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -106,7 +120,7 @@ export default function ExportPage() {
 
         {/* Export Options */}
         <div className="space-y-4">
-          {exportOptions.map((option) => (
+          {paginatedExportOptions.map((option) => (
             <div key={option.type} className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex items-start gap-4 mb-4">
                 <div className={`w-12 h-12 ${option.color} rounded-lg flex items-center justify-center`}>
@@ -167,6 +181,15 @@ export default function ExportPage() {
             </div>
           ))}
         </div>
+        {exportOptions.length > 0 && (
+          <div className="mt-6">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
 
         {/* Tips */}
         <div className="mt-6 bg-blue-50 rounded-xl p-4">
@@ -182,5 +205,3 @@ export default function ExportPage() {
     </div>
   );
 }
-
-

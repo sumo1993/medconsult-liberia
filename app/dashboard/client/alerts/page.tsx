@@ -6,9 +6,11 @@ import {
   Bell, ArrowLeft, CheckCircle, Clock, AlertCircle, 
   FileText, MessageSquare, Calendar, DollarSign, Star
 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface Notification {
-  id: number;
+  id: string | number;
   type: string;
   title: string;
   message: string;
@@ -19,13 +21,18 @@ interface Notification {
 
 export default function ClientAlertsPage() {
   const router = useRouter();
+  const { markCategorySeen } = useNotifications('client');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  const getNotificationKey = (n: Notification) => `${n.id}`;
 
   const fetchNotifications = async () => {
     try {
@@ -38,7 +45,16 @@ export default function ClientAlertsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data);
+        let readSet = new Set<string>();
+        try {
+          const raw = localStorage.getItem('client_notification_reads');
+          const parsed = raw ? JSON.parse(raw) : [];
+          readSet = new Set<string>(Array.isArray(parsed) ? parsed : []);
+        } catch {}
+        const normalized = (Array.isArray(data) ? data : []).map((n: Notification) =>
+          readSet.has(getNotificationKey(n)) ? { ...n, is_read: true } : n
+        );
+        setNotifications(normalized);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -47,7 +63,7 @@ export default function ClientAlertsPage() {
     }
   };
 
-  const markAsRead = async (notificationId: number) => {
+  const markAsRead = async (notificationId: string | number) => {
     try {
       const token = localStorage.getItem('auth-token');
       await fetch(`/api/client/notifications/${notificationId}/read`, {
@@ -59,7 +75,7 @@ export default function ClientAlertsPage() {
       
       // Update local state
       setNotifications(notifications.map(n => 
-        n.id === notificationId ? { ...n, is_read: true } : n
+        String(n.id) === String(notificationId) ? { ...n, is_read: true } : n
       ));
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -78,13 +94,42 @@ export default function ClientAlertsPage() {
       
       // Update local state
       setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+      try {
+        const allKeys = notifications.map(getNotificationKey);
+        localStorage.setItem('client_notification_reads', JSON.stringify(allKeys));
+      } catch {}
+      markCategorySeen('messages');
+      markCategorySeen('assignments');
+      markCategorySeen('appointments');
+      markCategorySeen('donationInquiries');
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    markAsRead(notification.id);
+  const markLocalAsRead = (notification: Notification) => {
+    const key = getNotificationKey(notification);
+    setNotifications(prev =>
+      prev.map(n => (getNotificationKey(n) === key ? { ...n, is_read: true } : n))
+    );
+    try {
+      const raw = localStorage.getItem('client_notification_reads');
+      const parsed = raw ? JSON.parse(raw) : [];
+      const set = new Set<string>(Array.isArray(parsed) ? parsed : []);
+      set.add(key);
+      localStorage.setItem('client_notification_reads', JSON.stringify(Array.from(set)));
+    } catch {}
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.is_read) {
+      markLocalAsRead(notification);
+      if (notification.type === 'message') markCategorySeen('messages', 1);
+      if (notification.type === 'assignment') markCategorySeen('assignments', 1);
+      if (notification.type === 'appointment') markCategorySeen('appointments', 1);
+      if (notification.type === 'payment') markCategorySeen('donationInquiries', 1);
+      await markAsRead(notification.id);
+    }
     if (notification.link) {
       router.push(notification.link);
     }
@@ -126,8 +171,17 @@ export default function ClientAlertsPage() {
   const filteredNotifications = filter === 'unread' 
     ? notifications.filter(n => !n.is_read)
     : notifications;
+  const sortedNotifications = [...filteredNotifications].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedNotifications.length / itemsPerPage));
+  const paginatedNotifications = sortedNotifications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [notifications, filter]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -194,7 +248,7 @@ export default function ClientAlertsPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading notifications...</p>
           </div>
-        ) : filteredNotifications.length === 0 ? (
+        ) : sortedNotifications.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">
             <Bell className="mx-auto text-gray-300 mb-4" size={64} />
             <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -208,7 +262,7 @@ export default function ClientAlertsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredNotifications.map((notification) => (
+            {paginatedNotifications.map((notification) => (
               <div
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
@@ -237,6 +291,11 @@ export default function ClientAlertsPage() {
                 </div>
               </div>
             ))}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </main>

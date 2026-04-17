@@ -1,58 +1,64 @@
-export default function BlogPage() {
+import HealthNewsBoard from '@/components/HealthNewsBoard';
+
+export default function HealthResourcesPage() {
+
   return (
-    <div className="min-h-screen bg-gray-50 py-20">
-      <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">Health Resources & Research Data</h1>
-        <p className="text-lg text-gray-600 mb-12">
-          Stay informed with the latest health insights and medical news.
-        </p>
-        
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Research Resources</h2>
-          <div className="grid gap-4">
-            <a href="https://www.who.int/" target="_blank" rel="noopener noreferrer" 
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">World Health Organization (WHO)</h3>
-              <p className="text-gray-600">Global health data and disease surveillance</p>
+    <main className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-5xl mx-auto px-4">
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900">Health Resources</h1>
+          <p className="text-gray-600 mt-2">
+            Latest health headlines with trusted source links. Indicator cards are temporarily removed.
+          </p>
+        </header>
+
+        <HealthNewsBoard />
+
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Trusted Health Sources</h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            <a
+              href="https://www.who.int/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+            >
+              <p className="font-semibold text-gray-900">World Health Organization (WHO)</p>
+              <p className="text-sm text-gray-600 mt-1">Global health guidance, data, and alerts.</p>
             </a>
-            <a href="https://datatopics.worldbank.org/world-development-indicators/" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">World Development Indicators (WDI)</h3>
-              <p className="text-gray-600">Development indicators including health metrics</p>
+
+            <a
+              href="https://moh.gov.lr/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+            >
+              <p className="font-semibold text-gray-900">Liberia Ministry of Health</p>
+              <p className="text-sm text-gray-600 mt-1">Domestic health policies and ministry updates.</p>
             </a>
-            <a href="https://www.who.int/data/gho" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">Global Health Observatory (GHO)</h3>
-              <p className="text-gray-600">WHO portal for health statistics</p>
+
+            <a
+              href="https://feeds.bbci.co.uk/news/health/rss.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+            >
+              <p className="font-semibold text-gray-900">BBC Health</p>
+              <p className="text-sm text-gray-600 mt-1">International health reporting and analysis.</p>
             </a>
-            <a href="https://dhsprogram.com/" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">Demographic and Health Surveys (DHS)</h3>
-              <p className="text-gray-600">Household surveys on health and demographics</p>
-            </a>
-            <a href="https://www.healthdata.org/gbd" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">Global Burden of Disease (GBD)</h3>
-              <p className="text-gray-600">Disease burden and mortality data</p>
-            </a>
-            <a href="https://data.unicef.org/" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">UNICEF Data</h3>
-              <p className="text-gray-600">Child health and maternal health statistics</p>
-            </a>
-            <a href="https://data.worldbank.org/country/liberia" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">Liberia Statistics - World Bank</h3>
-              <p className="text-gray-600">Comprehensive data and statistics on Liberia from the World Bank</p>
-            </a>
-            <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener noreferrer"
-               className="block p-4 border rounded-lg hover:bg-gray-50">
-              <h3 className="font-semibold text-blue-600">PubMed</h3>
-              <p className="text-gray-600">Biomedical and life science literature</p>
+
+            <a
+              href="https://rss.cnn.com/rss/edition_health.rss"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-4 rounded-lg border border-gray-200 hover:bg-gray-50"
+            >
+              <p className="font-semibold text-gray-900">CNN Health</p>
+              <p className="text-sm text-gray-600 mt-1">International health news feed.</p>
             </a>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

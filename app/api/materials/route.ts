@@ -11,11 +11,15 @@ export async function GET(request: NextRequest) {
     const [materials] = await pool.execute<RowDataPacket[]>(
       `SELECT 
         sm.*,
+        COALESCE(sm.file_name, SUBSTRING_INDEX(sm.file_path, '/', -1), SUBSTRING_INDEX(sm.file_url, '/', -1), sm.title) as file_name,
+        COALESCE(sm.file_path, sm.file_url) as file_path,
+        COALESCE(sm.file_size, 0) as file_size,
+        COALESCE(sm.upload_date, sm.created_at) as upload_date,
         u.full_name as uploader_name,
         u.email as uploader_email
        FROM study_materials sm
        JOIN users u ON sm.uploaded_by = u.id
-       ORDER BY sm.upload_date DESC`
+       ORDER BY COALESCE(sm.upload_date, sm.created_at) DESC`
     );
 
     return NextResponse.json({ materials });
@@ -78,16 +82,20 @@ export async function POST(request: NextRequest) {
     await writeFile(fullPath, buffer);
 
     // Insert into database
+    const safeFileName = (file.name || 'material').slice(0, 500);
+    const safeFileType = (file.type || 'application/octet-stream').slice(0, 180);
+
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO study_materials 
-       (title, description, file_name, file_path, file_type, file_size, category, uploaded_by) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (title, description, file_name, file_path, file_url, file_type, file_size, category, uploaded_by, upload_date) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         title,
         description || null,
-        file.name,
+        safeFileName,
         filePath,
-        file.type,
+        filePath,
+        safeFileType,
         file.size,
         category || 'General',
         user.userId,
@@ -101,10 +109,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error uploading material:', error);
+    const detailedMessage = error?.sqlMessage || error?.message || 'Unknown upload error';
     return NextResponse.json(
       { 
-        error: 'Failed to upload material',
-        details: error.message 
+        error: detailedMessage,
+        details: detailedMessage
       },
       { status: 500 }
     );

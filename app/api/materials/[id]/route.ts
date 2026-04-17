@@ -29,7 +29,7 @@ export async function DELETE(
 
     // Get material info to delete file
     const [materials] = await pool.execute<RowDataPacket[]>(
-      'SELECT file_path FROM study_materials WHERE id = ?',
+      'SELECT COALESCE(file_path, file_url) as file_path FROM study_materials WHERE id = ?',
       [materialId]
     );
 
@@ -50,8 +50,11 @@ export async function DELETE(
 
     // Try to delete file (don't fail if file doesn't exist)
     try {
-      const fullPath = path.join(process.cwd(), 'public', material.file_path);
-      await unlink(fullPath);
+      if (material.file_path) {
+        const relativePath = String(material.file_path).replace(/^\/+/, '');
+        const fullPath = path.join(process.cwd(), 'public', relativePath);
+        await unlink(fullPath);
+      }
     } catch (err) {
       console.log('File already deleted or not found');
     }

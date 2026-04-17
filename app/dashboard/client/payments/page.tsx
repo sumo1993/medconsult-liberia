@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DollarSign, CreditCard, Clock, CheckCircle, XCircle, ArrowLeft, FileText, Download, Eye } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Payment {
   id: number;
@@ -25,6 +26,8 @@ export default function ClientPaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchPayments();
@@ -85,6 +88,16 @@ export default function ClientPaymentsPage() {
       minute: '2-digit',
     });
   };
+
+  const sortedPayments = [...payments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedPayments.length / itemsPerPage));
+  const paginatedPayments = sortedPayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [payments]);
 
   const viewReceipt = async (payment: Payment) => {
     setSelectedPayment(payment);
@@ -238,7 +251,7 @@ export default function ClientPaymentsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {payments.map((payment) => (
+                    {paginatedPayments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDate(payment.created_at)}
@@ -289,6 +302,13 @@ export default function ClientPaymentsPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-100">
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Star, Calendar, FileText, User } from 'lucide-react';
 import { RatingStars } from '@/components/RatingStars';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Rating {
   id: number;
@@ -28,6 +29,8 @@ export default function DoctorRatingsPage() {
     twoStars: 0,
     oneStars: 0,
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchRatings();
@@ -105,6 +108,16 @@ export default function DoctorRatingsPage() {
   const getRatingPercentage = (count: number) => {
     return stats.totalRatings > 0 ? ((count / stats.totalRatings) * 100).toFixed(0) : 0;
   };
+
+  const sortedRatings = [...ratings].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedRatings.length / itemsPerPage));
+  const paginatedRatings = sortedRatings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [ratings]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -194,7 +207,7 @@ export default function DoctorRatingsPage() {
                 Client Reviews ({stats.totalRatings})
               </h2>
 
-              {ratings.length === 0 ? (
+              {sortedRatings.length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-12 text-center">
                   <Star size={48} className="text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -206,7 +219,7 @@ export default function DoctorRatingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {ratings.map((rating) => (
+                  {paginatedRatings.map((rating) => (
                     <div
                       key={rating.id}
                       className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow"
@@ -256,6 +269,11 @@ export default function DoctorRatingsPage() {
                       )}
                     </div>
                   ))}
+                  <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
                 </div>
               )}
             </div>

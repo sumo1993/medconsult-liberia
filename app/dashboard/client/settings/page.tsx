@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bell, Lock, Eye, EyeOff, Mail, User, Shield, Trash2, Download, Moon, Sun } from 'lucide-react';
+import Toast from '@/components/Toast';
 
 export default function ClientSettingsPage() {
   const router = useRouter();
@@ -36,6 +37,40 @@ export default function ClientSettingsPage() {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
   };
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        const headers = {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        };
+
+        const [notifRes, privacyRes] = await Promise.all([
+          fetch('/api/client/settings/notifications', { headers }),
+          fetch('/api/client/settings/privacy', { headers }),
+        ]);
+
+        if (notifRes.ok) {
+          const n = await notifRes.json();
+          setEmailNotifications(!!n.emailNotifications);
+          setAssignmentNotifications(!!n.assignmentNotifications);
+          setMessageNotifications(!!n.messageNotifications);
+          setFeedbackNotifications(!!n.feedbackNotifications);
+        }
+
+        if (privacyRes.ok) {
+          const p = await privacyRes.json();
+          setProfileVisibility(p.profileVisibility === 'public' ? 'public' : 'private');
+          setShowEmail(!!p.showEmail);
+        }
+      } catch (error) {
+        console.error('Error loading client settings:', error);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   const handleSaveNotifications = async () => {
     setLoading(true);
@@ -167,15 +202,13 @@ export default function ClientSettingsPage() {
         </div>
       </header>
 
-      {/* Notification Banner */}
       {notification && (
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4`}>
-          <div className={`rounded-lg p-4 ${
-            notification.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-          }`}>
-            {notification.message}
-          </div>
-        </div>
+        <Toast
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+          duration={5000}
+        />
       )}
 
       {/* Main Content */}

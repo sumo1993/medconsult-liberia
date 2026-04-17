@@ -14,17 +14,29 @@ export async function GET(request: NextRequest) {
 
     console.log('[Profile GET] Fetching profile for user ID:', user.userId);
 
-    // First get user info with all profile fields including rating data and status
-    const [users] = await pool.execute<RowDataPacket[]>(
-      `SELECT id, email, role, status, full_name, title, date_of_birth, gender, city, county, country,
-       educational_level, marital_status, employment_status, occupation, 
-       phone_number, emergency_contact_name, emergency_contact_phone, 
-       emergency_contact_relationship, specialization, years_of_experience,
-       license_number, research_interests, current_projects, bio,
-       average_rating, total_ratings
-       FROM users WHERE id = ?`,
-      [user.userId]
-    );
+    let users: RowDataPacket[] = [];
+    try {
+      // Preferred rich query (newer schemas)
+      const [richUsers] = await pool.execute<RowDataPacket[]>(
+        `SELECT id, email, role, status, full_name, title, date_of_birth, gender, city, county, country,
+         educational_level, marital_status, employment_status, occupation,
+         phone_number, emergency_contact_name, emergency_contact_phone,
+         emergency_contact_relationship, specialization, years_of_experience,
+         license_number, research_interests, current_projects, bio,
+         average_rating, total_ratings
+         FROM users WHERE id = ?`,
+        [user.userId]
+      );
+      users = richUsers;
+    } catch (schemaError) {
+      // Fallback for older schemas missing one or more optional columns
+      console.warn('[Profile GET] Falling back to minimal users query:', schemaError);
+      const [basicUsers] = await pool.execute<RowDataPacket[]>(
+        `SELECT id, email, role, full_name FROM users WHERE id = ?`,
+        [user.userId]
+      );
+      users = basicUsers;
+    }
     
     console.log('[Profile GET] User data retrieved:', {
       id: users[0]?.id,
@@ -40,10 +52,17 @@ export async function GET(request: NextRequest) {
     const userData = users[0];
 
     // Then get profile if exists
-    const [profiles] = await pool.execute<RowDataPacket[]>(
-      'SELECT * FROM user_profiles WHERE user_id = ?',
-      [user.userId]
-    );
+    let profiles: RowDataPacket[] = [];
+    try {
+      const [profileRows] = await pool.execute<RowDataPacket[]>(
+        'SELECT * FROM user_profiles WHERE user_id = ?',
+        [user.userId]
+      );
+      profiles = profileRows;
+    } catch (profileError) {
+      console.warn('[Profile GET] user_profiles table unavailable, returning users data only:', profileError);
+      profiles = [];
+    }
 
     if (profiles.length === 0) {
       // Return user data from users table if no profile exists
@@ -115,6 +134,9 @@ export async function PUT(request: NextRequest) {
       university,
       date_of_birth,
       bio,
+      phone_number,
+      city,
+      county,
       profile_photo_data,
       profile_photo_type,
       specialization,
@@ -228,17 +250,37 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    await pool.execute(
+      `UPDATE users
+       SET full_name = ?, phone_number = ?, city = ?, county = ?,
+           educational_level = ?, specialization = ?, bio = ?, date_of_birth = ?
+       WHERE id = ?`,
+      [
+        full_name || null,
+        phone_number || null,
+        city || null,
+        county || null,
+        educational_level || null,
+        specialization || null,
+        bio || null,
+        formattedDate,
+        user.userId,
+      ]
+    );
+
     return NextResponse.json({
       success: true,
       message: 'Profile updated successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('Error updating profile:', error);
     return NextResponse.json(
       { 
         error: 'Failed to update profile',
-        details: error.message || 'Unknown error',
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
       },
       { status: 500 }
     );

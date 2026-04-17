@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
 // POST - Upload profile photo
@@ -78,13 +78,20 @@ export async function GET(request: NextRequest) {
       console.log(`[Profile Photo] Fetching photo for authenticated user ID: ${targetUserId}`);
     }
 
-    // Check users table first
-    const [users] = await pool.execute<RowDataPacket[]>(
-      'SELECT profile_photo FROM users WHERE id = ?',
-      [targetUserId]
-    );
+    // Check users table first (newer schemas)
+    let users: RowDataPacket[] = [];
+    try {
+      const [userRows] = await pool.execute<RowDataPacket[]>(
+        'SELECT profile_photo FROM users WHERE id = ?',
+        [targetUserId]
+      );
+      users = userRows;
+    } catch (usersError) {
+      console.warn('[Profile Photo] users.profile_photo unavailable, trying user_profiles fallback:', usersError);
+      users = [];
+    }
 
-    if (users && users.length > 0 && users[0].profile_photo) {
+    if (users.length > 0 && users[0].profile_photo) {
       const photoBuffer = Buffer.from(users[0].profile_photo);
       console.log(`[Profile Photo] Found photo in users table for user ${targetUserId}, size: ${photoBuffer.length} bytes`);
       return new NextResponse(photoBuffer, {
@@ -99,15 +106,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fallback to user_profiles table
-    const [profiles] = await pool.execute<RowDataPacket[]>(
-      'SELECT profile_photo, profile_photo_type FROM user_profiles WHERE user_id = ?',
-      [targetUserId]
-    );
+    // Fallback to user_profiles table (older schemas)
+    let profiles: RowDataPacket[] = [];
+    try {
+      const [profileRows] = await pool.execute<RowDataPacket[]>(
+        'SELECT profile_photo, profile_photo_type FROM user_profiles WHERE user_id = ?',
+        [targetUserId]
+      );
+      profiles = profileRows;
+    } catch (profilesError) {
+      console.warn('[Profile Photo] user_profiles table unavailable:', profilesError);
+      profiles = [];
+    }
 
     if (!profiles || profiles.length === 0 || !profiles[0].profile_photo) {
       console.log(`[Profile Photo] No photo found for user ${targetUserId}`);
-      return NextResponse.json({ error: 'No profile photo' }, { status: 404 });
+      return new NextResponse(null, { status: 204 });
     }
 
     const profile = profiles[0];

@@ -2,17 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, FileText, MessageSquare, Activity, Calendar, TrendingUp, DollarSign, Bell, Settings, Image as ImageIcon, Handshake, UserCog, Eye, EyeOff, X, MessageSquareQuote } from 'lucide-react';
+import { Users, FileText, MessageSquare, Activity, Calendar, TrendingUp, DollarSign, Bell, Settings, Image as ImageIcon, Handshake, UserCog, Eye, EyeOff, X, MessageSquareQuote, MapPin } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationBadge from '@/components/NotificationBadge';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
+import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
+import CensusReportsAccessPanel from '@/components/CensusReportsAccessPanel';
+import CensusFieldAccessAdminPanel from '@/components/CensusFieldAccessAdminPanel';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('admin');
-  const { counts, loading: notifLoading, refresh } = useNotifications('admin');
+  const { counts, loading: notifLoading, refresh, markAllSeen } = useNotifications('admin');
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalMessages: 0,
@@ -35,10 +38,20 @@ export default function AdminDashboard() {
   };
 
   // Calculate total notifications
-  const totalNotifications = counts.messages + counts.appointments + counts.assignments + counts.donationInquiries + counts.researchPosts;
+  const totalNotifications =
+    counts.messages +
+    counts.appointments +
+    counts.assignments +
+    counts.donationInquiries +
+    counts.researchPosts +
+    counts.unreadAssignmentMessages +
+    counts.teamApplications +
+    counts.censusFieldApplications +
+    counts.directMessagesUnread +
+    counts.pendingResearchPapers;
 
-  // Validate session continuously
   useSessionValidation();
+  useAccountStatus();
 
   useEffect(() => {
     fetchStats();
@@ -96,11 +109,15 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem('auth-token');
       const response = await fetch('/api/my-earnings', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
         setEarnings(data);
+      } else if (response.status === 401 || response.status === 403) {
+        // Session may still be warming up or role may not receive this payload.
+        setEarnings(null);
       }
     } catch (error) {
       console.error('Error fetching earnings:', error);
@@ -109,42 +126,18 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      console.log('[Admin Dashboard] Fetching stats...');
-      // Fetch statistics from API
       const response = await fetch('/api/admin/stats', {
         credentials: 'include',
       });
-      console.log('[Admin Dashboard] Response status:', response.status);
-      console.log('[Admin Dashboard] Response ok:', response.ok);
-      
+
       if (response.ok) {
         const data = await response.json();
-        console.log('[Admin Dashboard] Stats received:', data);
         setStats(data);
-      } else {
-        const errorText = await response.text();
-        console.error('[Admin Dashboard] Failed to fetch stats:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
-        
-        // Try to parse as JSON
-        try {
-          const errorJson = JSON.parse(errorText);
-          console.error('[Admin Dashboard] Error details:', errorJson);
-        } catch (e) {
-          console.error('[Admin Dashboard] Response is not JSON:', errorText);
-        }
-        
-        // If unauthorized, redirect to login
-        if (response.status === 401) {
-          console.log('[Admin Dashboard] Unauthorized - redirecting to login');
-          router.push('/login');
-        }
+      } else if (response.status === 401) {
+        router.push('/login');
       }
     } catch (error) {
-      console.error('[Admin Dashboard] Error fetching stats:', error);
+      console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
     }
@@ -164,11 +157,11 @@ export default function AdminDashboard() {
       link: '/dashboard/admin/users',
     },
     {
-      title: 'Contact Messages',
+      title: 'Media Posts',
       value: stats.totalMessages,
-      icon: MessageSquare,
-      color: 'bg-green-500',
-      link: '/dashboard/admin/messages',
+      icon: ImageIcon,
+      color: 'bg-emerald-500',
+      link: '/dashboard/admin/media',
     },
     {
       title: 'Appointments',
@@ -221,7 +214,19 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
               <div className="relative">
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button
+                  onClick={() => {
+                    if (totalNotifications > 0) {
+                      markAllSeen();
+                      router.push('/dashboard/admin/messages');
+                    } else {
+                      showToast('No new notifications right now.');
+                    }
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="View notifications"
+                  aria-label="View notifications"
+                >
                   <Bell className="text-gray-600 hover:text-gray-900" size={20} />
                   {totalNotifications > 0 && (
                     <NotificationBadge 
@@ -329,6 +334,10 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        <CensusReportsAccessPanel role="admin" />
+
+        <CensusFieldAccessAdminPanel />
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           {statCards.map((stat, index) => (
@@ -371,10 +380,23 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => router.push('/dashboard/admin/team-applications')}
-              className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg hover:from-cyan-700 hover:to-cyan-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
+              className="relative px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg hover:from-cyan-700 hover:to-cyan-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
             >
               <UserCog size={16} className="inline mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Team </span>Apps
+              {counts.teamApplications > 0 && (
+                <NotificationBadge count={counts.teamApplications} className="absolute -top-2 -right-2" />
+              )}
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/admin/census-field-applications')}
+              className="relative px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg hover:from-teal-700 hover:to-teal-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
+            >
+              <MapPin size={16} className="inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Census </span>Field
+              {counts.censusFieldApplications > 0 && (
+                <NotificationBadge count={counts.censusFieldApplications} className="absolute -top-2 -right-2" />
+              )}
             </button>
             <button
               onClick={() => router.push('/dashboard/admin/researchers')}
@@ -385,19 +407,29 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => router.push('/dashboard/admin/research-approvals')}
-              className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
+              className="relative px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
             >
               <FileText size={16} className="inline mr-1 sm:mr-2" />
               Research Approvals
+              {counts.pendingResearchPapers > 0 && (
+                <NotificationBadge count={counts.pendingResearchPapers} className="absolute -top-2 -right-2" />
+              )}
             </button>
             <button
-              onClick={() => router.push('/dashboard/admin/messages')}
-              className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 relative text-xs sm:text-sm font-medium"
+              onClick={() => router.push('/dashboard/admin/media')}
+              className="px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
             >
-              <MessageSquare size={16} className="inline mr-1 sm:mr-2" />
-              Messages
-              {counts.messages > 0 && (
-                <NotificationBadge count={counts.messages} className="absolute -top-2 -right-2" />
+              <ImageIcon size={16} className="inline mr-1 sm:mr-2" />
+              Media
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/admin/direct-messages')}
+              className="relative px-3 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs sm:text-sm font-medium"
+            >
+              <MessageSquareQuote size={16} className="inline mr-1 sm:mr-2" />
+              Direct Messages
+              {counts.directMessagesUnread > 0 && (
+                <NotificationBadge count={counts.directMessagesUnread} className="absolute -top-2 -right-2" />
               )}
             </button>
             <button

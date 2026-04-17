@@ -88,9 +88,9 @@ export default function AboutDoctorSection() {
               </div>
             </div>
             
-            <div className="space-y-6 text-gray-700 text-lg leading-loose pt-2">
+            <div className="space-y-6 text-gray-700 text-lg leading-loose pt-2 max-w-2xl mx-auto">
               {doctor.bio.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="text-justify font-light tracking-wide">
+                <p key={index} className="font-light tracking-wide text-center">
                   {paragraph}
                 </p>
               ))}

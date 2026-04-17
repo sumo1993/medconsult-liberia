@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Download, FileText, Search, Filter, Eye } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Material {
   id: number;
@@ -22,6 +23,8 @@ export default function ConsultantMaterialsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchMaterials();
@@ -52,6 +55,15 @@ export default function ConsultantMaterialsPage() {
     const matchesCategory = selectedCategory === 'all' || m.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+  const sortedMaterials = [...filteredMaterials].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedMaterials.length / itemsPerPage));
+  const paginatedMaterials = sortedMaterials.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, materials]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
@@ -135,7 +147,7 @@ export default function ConsultantMaterialsPage() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
           </div>
-        ) : filteredMaterials.length === 0 ? (
+        ) : sortedMaterials.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <BookOpen className="mx-auto text-gray-400 mb-4" size={48} />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No materials found</h3>
@@ -147,7 +159,7 @@ export default function ConsultantMaterialsPage() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredMaterials.map((material) => (
+            {paginatedMaterials.map((material) => (
               <div
                 key={material.id}
                 className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
@@ -190,8 +202,14 @@ export default function ConsultantMaterialsPage() {
             ))}
           </div>
         )}
+        {!loading && sortedMaterials.length > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </main>
     </div>
   );
 }
-

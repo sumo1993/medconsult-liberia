@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Folder, MapPin, Calendar, Users, Search, Filter, Plus } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Project {
   id: number;
@@ -23,6 +24,8 @@ export default function ResearcherProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchProjects();
@@ -51,6 +54,15 @@ export default function ResearcherProjectsPage() {
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+  const sortedProjects = [...filteredProjects].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedProjects.length / itemsPerPage));
+  const paginatedProjects = sortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, projects]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -107,7 +119,7 @@ export default function ResearcherProjectsPage() {
             <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading projects...</p>
           </div>
-        ) : filteredProjects.length === 0 ? (
+        ) : sortedProjects.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm">
             <Folder className="mx-auto mb-4 text-gray-300" size={64} />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Projects Found</h3>
@@ -122,7 +134,7 @@ export default function ResearcherProjectsPage() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
+            {paginatedProjects.map((project) => (
               <div
                 key={project.id}
                 className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer"
@@ -165,9 +177,14 @@ export default function ResearcherProjectsPage() {
             ))}
           </div>
         )}
+        {!loading && sortedProjects.length > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </main>
     </div>
   );
 }
-
-

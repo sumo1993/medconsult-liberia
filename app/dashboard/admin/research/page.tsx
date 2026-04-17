@@ -1,13 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Plus } from 'lucide-react';
+import Toast from '@/components/Toast';
 
 export default function ResearchPage() {
   const router = useRouter();
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -25,7 +35,7 @@ export default function ResearchPage() {
               </div>
             </div>
             <button
-              onClick={() => alert('Create research post coming soon!')}
+              onClick={() => setToast({ message: 'Create research post coming soon!', type: 'info' })}
               className="flex items-center space-x-2 px-4 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800"
             >
               <Plus size={20} />
@@ -44,7 +54,7 @@ export default function ResearchPage() {
             Start creating research articles to share knowledge with your community.
           </p>
           <button
-            onClick={() => alert('Create research post coming soon!')}
+            onClick={() => setToast({ message: 'Create research post coming soon!', type: 'info' })}
             className="px-6 py-3 bg-emerald-700 text-white rounded-md hover:bg-emerald-800"
           >
             Create Your First Research Post

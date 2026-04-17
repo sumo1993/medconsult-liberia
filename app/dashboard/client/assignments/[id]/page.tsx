@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ArrowLeft, Download, DollarSign, Check, X, MessageSquare, 
-  Upload, FileText, Clock, CheckCircle, AlertCircle, Send, Paperclip, Smile, Star
+  Upload, FileText, Clock, CheckCircle, AlertCircle, Send, Paperclip, Smile, Star, Pencil, Trash2
 } from 'lucide-react';
 import FileViewer from '@/components/FileViewer';
 import { RatingForm } from '@/components/RatingStars';
@@ -19,6 +19,8 @@ interface AssignmentRequest {
   proposed_price: number | null;
   final_price: number | null;
   currency: string;
+  consultant_name: string | null;
+  consultant_email: string | null;
   doctor_name: string | null;
   doctor_email: string | null;
   doctor_notes: string | null;
@@ -86,6 +88,14 @@ export default function AssignmentDetailPage() {
   
   // Confirmation dialog
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    subject: '',
+    description: '',
+    deadline: '',
+  });
 
   // Messaging
   const [newMessage, setNewMessage] = useState('');
@@ -157,6 +167,12 @@ export default function AssignmentDetailPage() {
       if (response.ok) {
         const data = await response.json();
         setRequest(data);
+        setEditForm({
+          title: data.title || '',
+          subject: data.subject || '',
+          description: data.description || '',
+          deadline: data.deadline ? String(data.deadline).slice(0, 10) : '',
+        });
       }
     } catch (error) {
       console.error('Error fetching request:', error);
@@ -207,11 +223,15 @@ export default function AssignmentDetailPage() {
             statusText: response.statusText,
             error: errorData
           });
+          showNotification('error', errorData?.error || `Failed to load messages (${response.status})`);
         } catch (e) {
+          const rawText = await response.text().catch(() => '');
           console.error('[Client] Error fetching messages (non-JSON response):', {
             status: response.status,
-            statusText: response.statusText
+            statusText: response.statusText,
+            body: rawText
           });
+          showNotification('error', `Failed to load messages (${response.status})`);
         }
         // Set empty messages array on error
         setMessages([]);
@@ -473,6 +493,71 @@ export default function AssignmentDetailPage() {
     }
   };
 
+  const handleSaveEdits = async () => {
+    if (!editForm.title.trim() || !editForm.description.trim()) {
+      showNotification('error', 'Title and description are required');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-requests/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          action: 'client_update_request',
+          title: editForm.title.trim(),
+          subject: editForm.subject.trim(),
+          description: editForm.description.trim(),
+          deadline: editForm.deadline || null,
+        }),
+      });
+
+      if (response.ok) {
+        showNotification('success', 'Assignment updated successfully.');
+        setShowEditForm(false);
+        fetchRequest();
+      } else {
+        const data = await response.json();
+        showNotification('error', data.error || 'Failed to update assignment');
+      }
+    } catch {
+      showNotification('error', 'Network error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/assignment-requests/${params.id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (response.ok) {
+        router.push('/dashboard/client/assignments');
+        return;
+      }
+
+      const data = await response.json().catch(() => ({}));
+      showNotification('error', data.error || 'Failed to delete assignment');
+    } catch {
+      showNotification('error', 'Network error');
+    } finally {
+      setActionLoading(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   const downloadAttachment = () => {
     const token = localStorage.getItem('auth-token');
     window.open(`/api/assignment-requests/${params.id}/attachment?token=${token}`, '_blank');
@@ -643,6 +728,13 @@ export default function AssignmentDetailPage() {
     );
   }
 
+  const assignedPersonName = request.consultant_name || request.doctor_name;
+  const assignedPersonEmail = request.consultant_email || request.doctor_email;
+  const canEditOrDelete =
+    !['payment_uploaded', 'payment_verified', 'in_progress', 'completed'].includes(request.status) &&
+    !request.has_receipt &&
+    !request.payment_method;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -731,6 +823,89 @@ export default function AssignmentDetailPage() {
                 </div>
               )}
             </div>
+
+            {canEditOrDelete && (
+              <div className="bg-white rounded-lg shadow p-4 border border-emerald-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">Edit Or Delete Request</h2>
+                    <p className="text-sm text-gray-600">
+                      You can edit or delete before payment is uploaded and before work starts.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowEditForm((prev) => !prev)}
+                      className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Pencil size={16} />
+                      <span>{showEditForm ? 'Close Edit' : 'Edit'}</span>
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
+                    >
+                      <Trash2 size={16} />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+
+                {showEditForm && (
+                  <div className="mt-4 space-y-3 border-t pt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                      <input
+                        value={editForm.title}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                      <input
+                        value={editForm.subject}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, subject: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                      <textarea
+                        rows={4}
+                        value={editForm.description}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                      <input
+                        type="date"
+                        value={editForm.deadline}
+                        onChange={(e) => setEditForm((prev) => ({ ...prev, deadline: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveEdits}
+                        disabled={actionLoading}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {actionLoading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button
+                        onClick={() => setShowEditForm(false)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Price Action Buttons - Compact Grid */}
             {request.proposed_price && request.status === 'price_proposed' && (
@@ -1392,15 +1567,15 @@ export default function AssignmentDetailPage() {
           {/* Right Column - Info */}
           <div className="space-y-6">
             {/* Consultant Info */}
-            {request.doctor_name && (
+            {assignedPersonName && (
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="font-bold text-gray-900 mb-4">Assigned Consultant</h3>
                 <div className="space-y-2">
                   <p className="text-sm">
-                    <strong>Name:</strong> {request.doctor_name}
+                    <strong>Name:</strong> {assignedPersonName}
                   </p>
                   <p className="text-sm">
-                    <strong>Email:</strong> {request.doctor_email}
+                    <strong>Email:</strong> {assignedPersonEmail}
                   </p>
                 </div>
               </div>
@@ -1481,7 +1656,7 @@ export default function AssignmentDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-gray-600">
-                      Help others by rating your experience with {request.doctor_name || 'the doctor'}.
+                      Help others by rating your experience with {assignedPersonName || 'the consultant'}.
                     </p>
                     <button
                       onClick={() => setShowRatingForm(true)}
@@ -1582,6 +1757,44 @@ export default function AssignmentDetailPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-emerald-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in">
+            <div className="bg-gradient-to-r from-red-600 to-rose-600 px-6 py-4">
+              <div className="flex items-center space-x-3">
+                <div className="bg-white/20 rounded-full p-2">
+                  <Trash2 className="text-white" size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-white">Delete Assignment Request</h3>
+              </div>
+            </div>
+
+            <div className="px-6 py-6">
+              <p className="text-gray-700">
+                Are you sure you want to delete this assignment request? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 flex gap-3">
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRequest}
+                disabled={actionLoading}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold disabled:opacity-50"
+              >
+                {actionLoading ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add animation styles */}
       <style jsx>{`
         @keyframes scale-in {
@@ -1637,7 +1850,7 @@ export default function AssignmentDetailPage() {
             <div className="p-6">
               <div className="mb-4">
                 <p className="text-gray-600 text-sm">
-                  Rate your experience with <strong>{request.doctor_name || 'the doctor'}</strong> on this assignment.
+                  Rate your experience with <strong>{assignedPersonName || 'the consultant'}</strong> on this assignment.
                 </p>
               </div>
               

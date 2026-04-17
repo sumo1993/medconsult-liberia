@@ -3,33 +3,67 @@ import pool from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
+const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+const usePostgres =
+  dbClient === 'postgres' ||
+  dbClient === 'postgresql' ||
+  !!process.env.DATABASE_URL;
+
 // Ensure table exists
 async function ensureTable() {
   try {
+    if (usePostgres) {
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS research_submissions (
+          id SERIAL PRIMARY KEY,
+          researcher_id INT NOT NULL,
+          data_type VARCHAR(50) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          location VARCHAR(255),
+          date_collected DATE,
+          sample_count INT DEFAULT 0,
+          notes TEXT,
+          file_data BYTEA,
+          file_name VARCHAR(255),
+          file_type VARCHAR(100),
+          status VARCHAR(20) DEFAULT 'pending',
+          reviewed_by INT,
+          reviewed_at TIMESTAMP NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.execute(`CREATE INDEX IF NOT EXISTS idx_research_submissions_researcher ON research_submissions(researcher_id)`);
+      await pool.execute(`CREATE INDEX IF NOT EXISTS idx_research_submissions_status ON research_submissions(status)`);
+      await pool.execute(`CREATE INDEX IF NOT EXISTS idx_research_submissions_date ON research_submissions(date_collected)`);
+      return;
+    }
+
     await pool.execute(`
-      CREATE TABLE IF NOT EXISTS research_submissions (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        researcher_id INT NOT NULL,
-        data_type VARCHAR(50) NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        description TEXT,
-        location VARCHAR(255),
-        date_collected DATE,
-        sample_count INT DEFAULT 0,
-        notes TEXT,
-        file_data LONGBLOB,
-        file_name VARCHAR(255),
-        file_type VARCHAR(100),
-        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-        reviewed_by INT,
-        reviewed_at DATETIME,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_researcher (researcher_id),
-        INDEX idx_status (status),
-        INDEX idx_date (date_collected)
-      )
-    `);
+        CREATE TABLE IF NOT EXISTS research_submissions (
+          id INT PRIMARY KEY AUTO_INCREMENT,
+          researcher_id INT NOT NULL,
+          data_type VARCHAR(50) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          location VARCHAR(255),
+          date_collected DATE,
+          sample_count INT DEFAULT 0,
+          notes TEXT,
+          file_data LONGBLOB,
+          file_name VARCHAR(255),
+          file_type VARCHAR(100),
+          status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+          reviewed_by INT,
+          reviewed_at DATETIME,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_researcher (researcher_id),
+          INDEX idx_status (status),
+          INDEX idx_date (date_collected)
+        )
+      `);
   } catch (error) {
     console.error('Error ensuring research_submissions table:', error);
   }
@@ -64,7 +98,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Transform for frontend
-    const formattedSubmissions = submissions.map((s: any) => ({
+    const formattedSubmissions = submissions.map((s: RowDataPacket) => ({
       id: s.id,
       project_title: s.title,
       submitted_at: s.submitted_at,
@@ -151,12 +185,13 @@ export async function POST(request: NextRequest) {
       message: 'Data submitted successfully',
       id: result.insertId,
     }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const details = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error creating submission:', error);
     return NextResponse.json(
       { 
         error: 'Failed to submit data',
-        details: error.message 
+        details
       },
       { status: 500 }
     );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, Phone, Mail, User, Check, X, CheckCircle, XCircle } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Appointment {
   id: number;
@@ -22,6 +23,8 @@ export default function ManagementAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchAppointments();
@@ -79,12 +82,21 @@ export default function ManagementAppointmentsPage() {
   const filteredAppointments = filter === 'all' 
     ? appointments 
     : appointments.filter(apt => apt.status === filter);
+  const sortedAppointments = [...filteredAppointments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedAppointments.length / itemsPerPage));
+  const paginatedAppointments = sortedAppointments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const stats = {
     pending: appointments.filter(a => a.status === 'pending').length,
     confirmed: appointments.filter(a => a.status === 'confirmed').length,
     completed: appointments.filter(a => a.status === 'completed').length,
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, appointments]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -149,14 +161,14 @@ export default function ManagementAppointmentsPage() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-gray-500">Loading appointments...</div>
-          ) : filteredAppointments.length === 0 ? (
+          ) : sortedAppointments.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <Calendar size={64} className="mx-auto mb-4 text-gray-300" />
               <p className="text-lg">No {filter !== 'all' ? filter : ''} appointments</p>
             </div>
           ) : (
             <div className="divide-y">
-              {filteredAppointments.map((appointment) => (
+              {paginatedAppointments.map((appointment) => (
                 <div key={appointment.id} className="p-6 hover:bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -235,6 +247,15 @@ export default function ManagementAppointmentsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {!loading && sortedAppointments.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
           )}
         </div>

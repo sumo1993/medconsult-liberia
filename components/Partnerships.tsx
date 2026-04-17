@@ -45,10 +45,10 @@ export default function Partnerships() {
               <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <partnership.icon className="text-emerald-700" size={36} />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4 text-center">
                 {partnership.title}
               </h3>
-              <p className="text-gray-600 mb-6">{partnership.description}</p>
+              <p className="text-gray-600 mb-6 text-center leading-relaxed">{partnership.description}</p>
               <a
                 href={partnership.buttonText === 'Discuss Donation' ? '/donate' : '#contact'}
                 className={`inline-block px-6 py-3 font-semibold rounded-md transition-all ${partnership.buttonStyle}`}

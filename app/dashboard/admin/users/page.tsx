@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Edit, Trash2, Shield, X, CheckCircle, XCircle, Lock, Unlock } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, X, CheckCircle, XCircle, Lock, Unlock, KeyRound } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
+import ProfileAvatar from '@/components/ProfileAvatar';
 
 interface User {
   id: number;
@@ -11,6 +13,7 @@ interface User {
   role: string;
   status: string;
   created_at: string;
+  password_change_locked?: number | boolean;
 }
 
 export default function UsersPage() {
@@ -26,6 +29,12 @@ export default function UsersPage() {
     currentStatus: string;
     action: string;
   } | null>(null);
+  const [passwordLockDialog, setPasswordLockDialog] = useState<{
+    show: boolean;
+    userId: number;
+    userName: string;
+    currentlyLocked: boolean;
+  } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{
     show: boolean;
     userId: number;
@@ -39,6 +48,14 @@ export default function UsersPage() {
     role: 'client',
     phone: '',
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const sortedUsers = [...users].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedUsers.length / itemsPerPage));
+  const paginatedUsers = sortedUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     fetchUsers();
@@ -69,8 +86,17 @@ export default function UsersPage() {
         const data = await response.json();
         console.log('[Users Page] Users fetched:', data.users.length);
         setUsers(data.users);
+        setCurrentPage(1);
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        const rawText = await response.text();
+        let errorData: any = { error: response.statusText || 'Unknown error' };
+        if (rawText) {
+          try {
+            errorData = JSON.parse(rawText);
+          } catch {
+            errorData = { error: rawText };
+          }
+        }
         console.error('[Users Page] Failed to fetch users:', {
           status: response.status,
           error: errorData
@@ -119,8 +145,16 @@ export default function UsersPage() {
       const responseText = await response.text();
       console.log('Response text:', responseText);
 
+      const parsed = (() => {
+        try {
+          return responseText ? JSON.parse(responseText) : null;
+        } catch {
+          return null;
+        }
+      })();
+
       if (response.ok) {
-        const data = JSON.parse(responseText);
+        const data = parsed || {};
         console.log('User created:', data);
         setNotification({
           type: 'success',
@@ -137,20 +171,18 @@ export default function UsersPage() {
         fetchUsers(); // Refresh list
         setTimeout(() => setNotification(null), 3000);
       } else {
-        try {
-          const data = JSON.parse(responseText);
-          console.error('Error creating user:', data);
-          setNotification({
-            type: 'error',
-            message: data.error || 'Failed to create user',
-          });
-        } catch (e) {
-          console.error('Error parsing response:', responseText);
-          setNotification({
-            type: 'error',
-            message: `Failed to create user. Status: ${response.status}`,
-          });
-        }
+        const data = (parsed && typeof parsed === 'object') ? parsed as { error?: string; details?: string } : null;
+        const serverError = data?.error || data?.details || '';
+        const fallback = responseText?.trim() ? responseText.trim().slice(0, 220) : '';
+        const finalMessage = serverError || fallback || `Failed to create user (HTTP ${response.status})`;
+
+        console.warn(
+          `Error creating user (HTTP ${response.status} ${response.statusText}): ${responseText || '[empty response body]'}`
+        );
+        setNotification({
+          type: 'error',
+          message: finalMessage,
+        });
         setTimeout(() => setNotification(null), 5000);
       }
     } catch (error) {
@@ -187,6 +219,15 @@ export default function UsersPage() {
       phone: '', // We don't have phone in the User interface
     });
     setShowModal(true);
+  };
+
+  const handleTogglePasswordLock = (user: User) => {
+    setPasswordLockDialog({
+      show: true,
+      userId: user.id,
+      userName: user.full_name,
+      currentlyLocked: !!user.password_change_locked,
+    });
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
@@ -357,6 +398,52 @@ export default function UsersPage() {
     }
   };
 
+  const confirmTogglePasswordLock = async () => {
+    if (!passwordLockDialog) return;
+
+    const { userId, currentlyLocked, userName } = passwordLockDialog;
+    const nextLockedState = !currentlyLocked;
+    setPasswordLockDialog(null);
+
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`/api/admin/users/${userId}/password-lock`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ locked: nextLockedState }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        setNotification({
+          type: 'success',
+          message: nextLockedState
+            ? `Password change locked for ${userName}`
+            : `Password change unlocked for ${userName}`,
+        });
+        fetchUsers();
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification({
+          type: 'error',
+          message: data.error || 'Failed to update password lock',
+        });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error toggling password lock:', error);
+      setNotification({
+        type: 'error',
+        message: 'Network error. Please try again.',
+      });
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin':
@@ -367,6 +454,8 @@ export default function UsersPage() {
         return 'bg-blue-100 text-blue-800';
       case 'researcher':
         return 'bg-teal-100 text-teal-800';
+      case 'census':
+        return 'bg-amber-100 text-amber-800';
       case 'management':
         return 'bg-blue-100 text-blue-800';
       case 'client':
@@ -449,19 +538,22 @@ export default function UsersPage() {
                       Loading users...
                     </td>
                   </tr>
-                ) : users.length === 0 ? (
+                ) : sortedUsers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                       No users found
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => (
+                  paginatedUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="flex items-center gap-3">
+                          <ProfileAvatar userId={user.id} size="sm" />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -486,6 +578,13 @@ export default function UsersPage() {
                           {user.status === 'suspended' ? <Unlock size={18} /> : <Lock size={18} />}
                         </button>
                         <button
+                          onClick={() => handleTogglePasswordLock(user)}
+                          className={`${user.password_change_locked ? 'text-emerald-700 hover:text-emerald-900' : 'text-purple-600 hover:text-purple-900'} mr-3`}
+                          title={user.password_change_locked ? 'Allow Password Changes' : 'Stop Password Changes'}
+                        >
+                          <KeyRound size={18} />
+                        </button>
+                        <button
                           onClick={() => handleEditUser(user)}
                           className="text-blue-600 hover:text-blue-900 mr-3"
                           title="Edit User"
@@ -506,6 +605,13 @@ export default function UsersPage() {
               </tbody>
             </table>
           </div>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100">
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </main>
 
@@ -607,6 +713,7 @@ export default function UsersPage() {
                   <option value="consultant">Consultant</option>
                   <option value="management">Management (Doctor)</option>
                   <option value="accountant">Accountant</option>
+                  <option value="census">Census (Field Worker)</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -743,6 +850,47 @@ export default function UsersPage() {
                 }`}
               >
                 {confirmDialog.action === 'lock' ? 'Lock Account' : 'Unlock Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Lock Confirmation Dialog */}
+      {passwordLockDialog?.show && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.95) 0%, rgba(209, 250, 229, 0.95) 50%, rgba(167, 243, 208, 0.9) 100%)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all border border-emerald-100">
+            <div className="text-center mb-6">
+              <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                passwordLockDialog.currentlyLocked ? 'bg-emerald-100' : 'bg-purple-100'
+              }`}>
+                <KeyRound className={passwordLockDialog.currentlyLocked ? 'text-emerald-700' : 'text-purple-700'} size={32} />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                {passwordLockDialog.currentlyLocked ? 'Allow Password Changes?' : 'Stop Password Changes?'}
+              </h3>
+              <p className="text-gray-600">
+                {passwordLockDialog.currentlyLocked
+                  ? `${passwordLockDialog.userName} will be able to change password again.`
+                  : `${passwordLockDialog.userName} will not be able to change password until unlocked.`}
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setPasswordLockDialog(null)}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmTogglePasswordLock}
+                className={`flex-1 px-6 py-3 text-white font-semibold rounded-xl transition-all duration-200 ${
+                  passwordLockDialog.currentlyLocked
+                    ? 'bg-emerald-700 hover:bg-emerald-800'
+                    : 'bg-purple-700 hover:bg-purple-800'
+                }`}
+              >
+                {passwordLockDialog.currentlyLocked ? 'Allow Change' : 'Stop Change'}
               </button>
             </div>
           </div>

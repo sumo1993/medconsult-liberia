@@ -6,7 +6,10 @@ import { DollarSign, TrendingUp, TrendingDown, Users, Calendar, Plus, Download, 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
+import { useSessionValidation } from '@/hooks/useSessionValidation';
+import { useAccountStatus } from '@/hooks/useAccountStatus';
 
 export default function AccountantDashboard() {
   const router = useRouter();
@@ -20,6 +23,7 @@ export default function AccountantDashboard() {
   const [consultantSummary, setConsultantSummary] = useState<any[]>([]);
   const [totalTeamFee, setTotalTeamFee] = useState(0);
   const [totalWebsiteFee, setTotalWebsiteFee] = useState(0);
+  const [summaryBreakdown, setSummaryBreakdown] = useState<any>({});
   const [myEarnings, setMyEarnings] = useState<any>(null);
   const [showMyEarnings, setShowMyEarnings] = useState(true);
   const [showFinancialBreakdown, setShowFinancialBreakdown] = useState(true);
@@ -51,6 +55,7 @@ export default function AccountantDashboard() {
     notes: ''
   });
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [pendingPaymentsSeen, setPendingPaymentsSeen] = useState(0);
   const [transactionForm, setTransactionForm] = useState({
     transaction_type: 'consultation_fee',
     amount: '',
@@ -67,11 +72,42 @@ export default function AccountantDashboard() {
     description: '',
     expense_date: new Date().toISOString().split('T')[0]
   });
+  const [overviewTransactionsPage, setOverviewTransactionsPage] = useState(1);
+  const [overviewConsultantsPage, setOverviewConsultantsPage] = useState(1);
+  const [allPaymentsPage, setAllPaymentsPage] = useState(1);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [earningsPage, setEarningsPage] = useState(1);
+  const [expensesPage, setExpensesPage] = useState(1);
+  const [paymentHistoryPage, setPaymentHistoryPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useSessionValidation();
+  useAccountStatus();
+
+  const pendingPaymentsBadgeCount = Math.max(0, (stats.pendingPayments || 0) - pendingPaymentsSeen);
 
   useEffect(() => {
-    // Run migration first, then fetch data
-    runMigration();
+    try {
+      const stored = localStorage.getItem('accountant_pending_seen');
+      if (stored) {
+        setPendingPaymentsSeen(Number(stored) || 0);
+      }
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    setOverviewTransactionsPage(1);
+    setOverviewConsultantsPage(1);
+    setAllPaymentsPage(1);
+    setTransactionsPage(1);
+    setEarningsPage(1);
+    setExpensesPage(1);
+    setPaymentHistoryPage(1);
+  }, [activeTab]);
   
   const runMigration = async () => {
     try {
@@ -95,10 +131,12 @@ export default function AccountantDashboard() {
 
       // Fetch my earnings
       try {
-        const earningsRes = await fetch('/api/my-earnings', { headers });
+        const earningsRes = await fetch('/api/my-earnings', { headers, credentials: 'include' });
         if (earningsRes.ok) {
           const data = await earningsRes.json();
           setMyEarnings(data);
+        } else if (earningsRes.status === 401 || earningsRes.status === 403) {
+          setMyEarnings(null);
         }
       } catch (err) {
         console.error('Error fetching my earnings:', err);
@@ -177,6 +215,7 @@ export default function AccountantDashboard() {
           setConsultantSummary(data.consultants || []);
           setTotalTeamFee(parseFloat(data.totalTeamFee || 0));
           setTotalWebsiteFee(parseFloat(data.totalWebsiteFee || 0));
+          setSummaryBreakdown(data.breakdown || {});
         }
       } catch (err) {
         console.error('Error fetching consultant summary:', err);
@@ -223,9 +262,35 @@ export default function AccountantDashboard() {
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  const sortByDateDesc = (items: any[], dateKey: string) =>
+    [...items].sort((a, b) => {
+      const aDate = a?.[dateKey] ? new Date(a[dateKey]).getTime() : 0;
+      const bDate = b?.[dateKey] ? new Date(b[dateKey]).getTime() : 0;
+      return bDate - aDate;
+    });
+
+  const paginate = (items: any[], page: number) =>
+    items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  const sortedTransactions = sortByDateDesc(transactions, 'transaction_date');
+  const sortedConsultantSummary = [...consultantSummary].sort((a, b) => {
+    const aDate = a?.last_completed ? new Date(a.last_completed).getTime() : 0;
+    const bDate = b?.last_completed ? new Date(b.last_completed).getTime() : 0;
+    if (bDate !== aDate) return bDate - aDate;
+    return (b.consultant_id || 0) - (a.consultant_id || 0);
+  });
+  const sortedAllPayments = sortByDateDesc(allPayments, 'payment_date');
+  const sortedEarnings = sortByDateDesc(earnings, 'created_at');
+  const sortedExpenses = sortByDateDesc(expenses, 'expense_date');
+  const sortedPaymentHistory = sortByDateDesc(paymentHistory, 'payment_date');
+  const teamTotals = paymentStatus?.teamTotals || {};
+  const assignmentTeamFee = parseFloat(teamTotals.assignmentTeamFee || summaryBreakdown.assignmentTeamFee || 0);
+  const partnerTeamFee = parseFloat(teamTotals.partnerTeamFee || summaryBreakdown.partnerTeamFee || 0);
+  const combinedTeamEarned = paymentStatus?.team?.reduce((sum: number, t: any) => sum + parseFloat(t.total_earned || 0), 0) || totalTeamFee;
+
   const exportToCSV = () => {
     if (transactions.length === 0) {
-      alert('No transactions to export');
+      showToast('No transactions to export', 'error');
       return;
     }
     const csv = [
@@ -484,7 +549,7 @@ export default function AccountantDashboard() {
 
   <div class="section page-break-before">
     <div class="section-title">TEAM SHARE DISTRIBUTION</div>
-    <div style="margin-bottom: 15px;"><strong>Total Team Share: ${formatCurrency(reportData.totalTeamFee)}</strong></div>
+    <div style="margin-bottom: 15px;"><strong>Total Team Share: ${formatCurrency(reportData.paymentStatus?.team?.reduce((sum: number, t: any) => sum + parseFloat(t.total_earned || 0), 0) || reportData.totalTeamFee)}</strong></div>
     <table class="table">
       <thead>
         <tr>
@@ -497,22 +562,22 @@ export default function AccountantDashboard() {
         </tr>
       </thead>
       <tbody>
-        ${[
-          { name: 'CEO', type: 'ceo', percent: 40/95 },
-          { name: 'IT Specialist', type: 'it_specialist', percent: 25/95 },
-          { name: 'Accountant', type: 'accountant', percent: 15/95 },
-          { name: 'Other Members', type: 'other_team', percent: 15/95 }
-        ].map(member => {
-          const earned = reportData.totalTeamFee * member.percent;
-          const status = reportData.paymentStatus?.team?.find((t: any) => t.payment_type === member.type);
+        ${(reportData.paymentStatus?.team || []).map((status: any) => {
+          const memberNames: Record<string, string> = {
+            ceo: 'CEO',
+            it_specialist: 'IT Specialist',
+            accountant: 'Accountant',
+            other_team: 'Other Members'
+          };
+          const earned = parseFloat(status?.total_earned || 0);
           const totalPaid = parseFloat(status?.total_paid || 0);
-          const unpaid = earned - totalPaid;
+          const unpaid = parseFloat(status?.unpaid_amount || (earned - totalPaid));
           const paymentStatus = unpaid <= 0 ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid');
           const statusClass = unpaid <= 0 ? 'status-paid' : (totalPaid > 0 ? 'status-partial' : 'status-unpaid');
           return `
           <tr>
-            <td>${member.name}</td>
-            <td>${Math.round(member.percent * 95)}%</td>
+            <td>${memberNames[status.payment_type] || status.payment_type}</td>
+            <td>Mixed</td>
             <td><strong>${formatCurrency(earned)}</strong></td>
             <td style="color: #059669;"><strong>${formatCurrency(totalPaid)}</strong></td>
             <td style="color: #dc2626;"><strong>${formatCurrency(unpaid)}</strong></td>
@@ -636,7 +701,13 @@ export default function AccountantDashboard() {
         headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         body: JSON.stringify(transactionData)
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data: any = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = { error: raw || `Request failed with status ${response.status}` };
+      }
       console.log('Response:', data);
       if (response.ok) {
         setShowAddTransaction(false);
@@ -645,7 +716,7 @@ export default function AccountantDashboard() {
         showToast('Transaction added successfully! 💰');
       } else {
         console.error('Error response:', data);
-        showToast(data.error || 'Failed to add transaction', 'error');
+        showToast(data.error || data.details || `Failed to add transaction (${response.status})`, 'error');
       }
     } catch (error) {
       console.error('Transaction error:', error);
@@ -767,13 +838,15 @@ export default function AccountantDashboard() {
     }
   };
 
-  const handlePayNow = (payee: any, type: 'consultant' | 'accountant' | 'it_specialist' | 'other_team') => {
+  const handlePayNow = (payee: any, type: 'consultant' | 'ceo' | 'accountant' | 'it_specialist' | 'other_team') => {
+    const teamEntry = paymentStatus?.team?.find((t: any) => t.payment_type === type);
+    const defaultAmount = type === 'consultant'
+      ? parseFloat(payee.unpaid_amount || payee.consultant_share || 0)
+      : parseFloat(teamEntry?.unpaid_amount || teamEntry?.total_earned || 0);
+
     setSelectedPayee({ ...payee, payment_type: type });
     setPaymentForm({
-      amount: type === 'consultant' ? payee.consultant_share : 
-              type === 'accountant' ? (consultantSummary.reduce((sum, c) => sum + parseFloat(c.team_fee || 0), 0) * 0.40).toFixed(2) :
-              type === 'it_specialist' ? (consultantSummary.reduce((sum, c) => sum + parseFloat(c.team_fee || 0), 0) * 0.40).toFixed(2) :
-              (consultantSummary.reduce((sum, c) => sum + parseFloat(c.team_fee || 0), 0) * 0.20).toFixed(2),
+      amount: defaultAmount.toFixed(2),
       payment_method: 'bank_transfer',
       payment_reference: '',
       notes: ''
@@ -846,6 +919,7 @@ export default function AccountantDashboard() {
     if (response.ok) {
       const data = await response.json();
       setPaymentHistory(data);
+      setPaymentHistoryPage(1);
       setSelectedPayee({ ...payee, payment_type: type });
       setShowPaymentHistory(true);
     } else {
@@ -867,11 +941,29 @@ export default function AccountantDashboard() {
             
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Notification Bell */}
-              <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <button
+                onClick={() => {
+                  if (pendingPaymentsBadgeCount > 0) {
+                    const currentPending = Number(stats.pendingPayments || 0);
+                    setPendingPaymentsSeen(currentPending);
+                    try {
+                      localStorage.setItem('accountant_pending_seen', String(currentPending));
+                    } catch {}
+                    setActiveTab('all payments');
+                  } else {
+                    showToast('No new notifications right now.');
+                  }
+                }}
+                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="View notifications"
+                aria-label="View notifications"
+              >
                 <Bell size={24} className="text-gray-600" />
-                <span className="absolute top-0 right-0 w-5 h-5 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  0
-                </span>
+                {pendingPaymentsBadgeCount > 0 && (
+                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {Math.min(pendingPaymentsBadgeCount, 99)}
+                  </span>
+                )}
               </button>
               
               {/* Profile Avatar */}
@@ -996,7 +1088,7 @@ export default function AccountantDashboard() {
                 <p className="text-lg sm:text-2xl font-bold text-purple-600">
                   {showMyEarnings ? `$${myEarnings.totalEarned?.toFixed(2) || '0.00'}` : '••••••'}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">15% of team share</p>
+                <p className="text-xs text-gray-500 mt-1">Combined from assignment + partner/donor</p>
               </div>
               <div className="bg-white rounded-lg p-3 sm:p-4 shadow">
                 <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Paid</p>
@@ -1114,7 +1206,7 @@ export default function AccountantDashboard() {
               <p className="text-lg sm:text-2xl font-bold text-blue-600">
                 {formatCurrency(consultantSummary.reduce((sum, c) => sum + parseFloat(c.consultant_share || 0), 0))}
               </p>
-              <p className="text-xs text-gray-500 mt-1">75% paid out</p>
+              <p className="text-xs text-gray-500 mt-1">50% paid out (assignments)</p>
             </div>
             
             {/* Team Shares */}
@@ -1199,7 +1291,7 @@ export default function AccountantDashboard() {
                   
                   {/* Mobile Card View */}
                   <div className="block md:hidden space-y-4">
-                    {transactions.slice(0, 10).map((t) => (
+                    {paginate(sortedTransactions, overviewTransactionsPage).map((t) => (
                       <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex items-center gap-2">
@@ -1249,7 +1341,7 @@ export default function AccountantDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {transactions.slice(0, 10).map((t) => (
+                        {paginate(sortedTransactions, overviewTransactionsPage).map((t) => (
                           <tr key={t.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">{formatDate(t.transaction_date)}</td>
                             <td className="px-4 py-3 text-sm"><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">{t.transaction_type.replace('_', ' ')}</span></td>
@@ -1261,6 +1353,15 @@ export default function AccountantDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  {sortedTransactions.length > 0 && (
+                    <PaginationControls
+                      currentPage={overviewTransactionsPage}
+                      totalPages={Math.max(1, Math.ceil(sortedTransactions.length / itemsPerPage))}
+                      onPageChange={setOverviewTransactionsPage}
+                      totalItems={sortedTransactions.length}
+                      itemsPerPage={itemsPerPage}
+                    />
+                  )}
                 </div>
 
                 {/* All Consultant Earnings from Assignments */}
@@ -1269,7 +1370,7 @@ export default function AccountantDashboard() {
                   
                   {/* Mobile Card View */}
                   <div className="lg:hidden grid grid-cols-2 gap-4">
-                    {consultantSummary.map((c) => (
+                    {paginate(sortedConsultantSummary, overviewConsultantsPage).map((c) => (
                       <div key={c.consultant_id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow">
                         <div className="flex justify-between items-start mb-3">
                           <div>
@@ -1286,7 +1387,7 @@ export default function AccountantDashboard() {
                             <p className="text-sm font-bold text-gray-900">{formatCurrency(parseFloat(c.total_amount))}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">Consultant (75%)</p>
+                            <p className="text-xs text-gray-500">Consultant (50%)</p>
                             <p className="text-sm font-bold text-emerald-600">{formatCurrency(parseFloat(c.consultant_share))}</p>
                           </div>
                           <div>
@@ -1294,7 +1395,7 @@ export default function AccountantDashboard() {
                             <p className="text-sm font-semibold text-blue-600">{formatCurrency(parseFloat(c.website_fee))}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">Team (15%)</p>
+                            <p className="text-xs text-gray-500">Team (40%)</p>
                             <p className="text-sm font-semibold text-purple-600">{formatCurrency(parseFloat(c.team_fee))}</p>
                           </div>
                         </div>
@@ -1303,7 +1404,7 @@ export default function AccountantDashboard() {
                         )}
                       </div>
                     ))}
-                    {consultantSummary.length === 0 && (
+                    {sortedConsultantSummary.length === 0 && (
                       <div className="text-center py-12 text-gray-500">
                         <p className="text-base">No consultant earnings found</p>
                         <p className="text-sm mt-2">Completed assignments will appear here</p>
@@ -1320,14 +1421,14 @@ export default function AccountantDashboard() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignments</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant (75%)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant (50%)</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Website (10%)</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team (15%)</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team (40%)</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Completed</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {consultantSummary.map((c) => (
+                        {paginate(sortedConsultantSummary, overviewConsultantsPage).map((c) => (
                           <tr key={c.consultant_id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm font-medium">{c.consultant_name}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{c.consultant_email}</td>
@@ -1343,7 +1444,7 @@ export default function AccountantDashboard() {
                             <td className="px-4 py-3 text-sm">{c.last_completed ? formatDate(c.last_completed) : '-'}</td>
                           </tr>
                         ))}
-                        {consultantSummary.length === 0 && (
+                        {sortedConsultantSummary.length === 0 && (
                           <tr>
                             <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
                               <p className="text-lg">No consultant earnings found</p>
@@ -1354,6 +1455,15 @@ export default function AccountantDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  {sortedConsultantSummary.length > 0 && (
+                    <PaginationControls
+                      currentPage={overviewConsultantsPage}
+                      totalPages={Math.max(1, Math.ceil(sortedConsultantSummary.length / itemsPerPage))}
+                      onPageChange={setOverviewConsultantsPage}
+                      totalItems={sortedConsultantSummary.length}
+                      itemsPerPage={itemsPerPage}
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -1374,7 +1484,7 @@ export default function AccountantDashboard() {
                 
                 {/* Mobile Card View */}
                 <div className="block lg:hidden space-y-3">
-                  {allPayments.map((p) => (
+                  {paginate(sortedAllPayments, allPaymentsPage).map((p) => (
                     <div key={`${p.payment_type}-${p.id}`} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-mono text-gray-500">{p.transaction_id}</span>
@@ -1410,21 +1520,21 @@ export default function AccountantDashboard() {
                           <p className="text-sm font-bold">{formatCurrency(p.amount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500">Consultant (75%)</p>
+                          <p className="text-xs text-gray-500">Consultant Share</p>
                           <p className="text-sm font-semibold text-emerald-600">{formatCurrency(p.consultant_share || 0)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500">Website (10%)</p>
+                          <p className="text-xs text-gray-500">Website Fee</p>
                           <p className="text-sm text-blue-600">{formatCurrency(p.website_fee || 0)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500">Team (15%)</p>
+                          <p className="text-xs text-gray-500">Team Share</p>
                           <p className="text-sm text-purple-600">{formatCurrency(p.team_fee || 0)}</p>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {allPayments.length === 0 && (
+                  {sortedAllPayments.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                       <p className="text-base">No payments found</p>
                       <p className="text-sm mt-2">Payments from clients and transactions will appear here</p>
@@ -1443,14 +1553,14 @@ export default function AccountantDashboard() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant (75%)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Website (10%)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team (15%)</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant Share</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Website Fee</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team Share</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {allPayments.map((p) => (
+                      {paginate(sortedAllPayments, allPaymentsPage).map((p) => (
                         <tr key={`${p.payment_type}-${p.id}`} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-mono text-gray-600">{p.transaction_id}</td>
                           <td className="px-4 py-3 text-sm">{formatDate(p.payment_date)}</td>
@@ -1492,13 +1602,22 @@ export default function AccountantDashboard() {
                       ))}
                     </tbody>
                   </table>
-                  {allPayments.length === 0 && (
+                  {sortedAllPayments.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                       <p className="text-lg">No payments found</p>
                       <p className="text-sm mt-2">Payments from clients and transactions will appear here</p>
                     </div>
                   )}
                 </div>
+                {sortedAllPayments.length > 0 && (
+                  <PaginationControls
+                    currentPage={allPaymentsPage}
+                    totalPages={Math.max(1, Math.ceil(sortedAllPayments.length / itemsPerPage))}
+                    onPageChange={setAllPaymentsPage}
+                    totalItems={sortedAllPayments.length}
+                    itemsPerPage={itemsPerPage}
+                  />
+                )}
               </div>
             )}
 
@@ -1518,7 +1637,7 @@ export default function AccountantDashboard() {
                 
                 {/* Mobile Card View */}
                 <div className="block md:hidden space-y-3">
-                  {transactions.map((t) => (
+                  {paginate(sortedTransactions, transactionsPage).map((t) => (
                     <div key={t.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                       <div className="flex justify-between items-start mb-2">
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
@@ -1577,7 +1696,7 @@ export default function AccountantDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {transactions.map((t) => (
+                      {paginate(sortedTransactions, transactionsPage).map((t) => (
                         <tr key={t.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm">{formatDate(t.transaction_date)}</td>
                           <td className="px-4 py-3 text-sm"><span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">{t.transaction_type.replace('_', ' ')}</span></td>
@@ -1618,6 +1737,15 @@ export default function AccountantDashboard() {
                     </tbody>
                   </table>
                 </div>
+                {sortedTransactions.length > 0 && (
+                  <PaginationControls
+                    currentPage={transactionsPage}
+                    totalPages={Math.max(1, Math.ceil(sortedTransactions.length / itemsPerPage))}
+                    onPageChange={setTransactionsPage}
+                    totalItems={sortedTransactions.length}
+                    itemsPerPage={itemsPerPage}
+                  />
+                )}
               </div>
             )}
 
@@ -1675,7 +1803,7 @@ export default function AccountantDashboard() {
 
                 {/* Earnings List Format */}
                 <div className="space-y-4 mb-8">
-                  {consultantSummary.map((c) => {
+                  {paginate(sortedConsultantSummary, earningsPage).map((c) => {
                     const status = paymentStatus.consultants.find((s: any) => s.consultant_id === c.consultant_id);
                     const unpaidAmount = status?.unpaid_amount || c.consultant_share;
                     const totalPaid = status?.total_paid || 0;
@@ -1741,7 +1869,7 @@ export default function AccountantDashboard() {
                           <p className="text-base sm:text-xl font-bold text-gray-900">{formatCurrency(parseFloat(c.total_amount))}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Consultant gets (75%)</p>
+                          <p className="text-xs text-gray-500 mb-1">Consultant gets (50%)</p>
                           <p className="text-base sm:text-xl font-bold text-emerald-600">{formatCurrency(parseFloat(c.consultant_share))}</p>
                         </div>
                         <div>
@@ -1749,7 +1877,7 @@ export default function AccountantDashboard() {
                           <p className="text-base sm:text-xl font-bold text-blue-600">{formatCurrency(parseFloat(c.website_fee))}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Team share (15%)</p>
+                          <p className="text-xs text-gray-500 mb-1">Team share (40%)</p>
                           <p className="text-base sm:text-xl font-bold text-purple-600">{formatCurrency(parseFloat(c.team_fee))}</p>
                         </div>
                       </div>
@@ -1757,18 +1885,27 @@ export default function AccountantDashboard() {
                   );
                   })}
                   
-                  {consultantSummary.length === 0 && (
+                  {sortedConsultantSummary.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                       <p className="text-lg">No earnings found</p>
                       <p className="text-sm mt-2">Completed assignments will appear here</p>
                     </div>
                   )}
                 </div>
+                {sortedConsultantSummary.length > 0 && (
+                  <PaginationControls
+                    currentPage={earningsPage}
+                    totalPages={Math.max(1, Math.ceil(sortedConsultantSummary.length / itemsPerPage))}
+                    onPageChange={setEarningsPage}
+                    totalItems={sortedConsultantSummary.length}
+                    itemsPerPage={itemsPerPage}
+                  />
+                )}
 
                 {/* Team Members Share Breakdown */}
                 {(consultantSummary.length > 0 || totalTeamFee > 0) && (
                   <div className="mt-8">
-                    <h2 className="text-xl font-bold mb-6">Team Members Share (15% Distribution)</h2>
+                    <h2 className="text-xl font-bold mb-6">Team Members Share (Assignments + Partner/Donor)</h2>
                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl shadow-sm border border-purple-200 p-6">
                       <div className="mb-6">
                         <div className="flex justify-between items-center mb-2">
@@ -1778,8 +1915,11 @@ export default function AccountantDashboard() {
                           </p>
                         </div>
                         <p className="text-sm text-gray-600">
-                          <strong>Universal Distribution:</strong> CEO 40%, IT 25%, Accountant 15%, Others 15%, Website 5%<br/>
-                          <span className="text-xs">(Consultations: 75% consultant + 25% team | Partnerships: 95% team + 5% website)</span>
+                          <strong>Method 1 (Assignments):</strong> Consultant 50%, CEO 10%, Website 10%, IT 10%, Accountant 10%, Others 10%<br/>
+                          <strong>Method 2 (Partner/Donor):</strong> CEO 40%, IT 25%, Accountant 15%, Others 15%, Website 5%
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Assignment team pool: {formatCurrency(assignmentTeamFee)} | Partner/Donor team pool: {formatCurrency(partnerTeamFee)}
                         </p>
                       </div>
 
@@ -1792,16 +1932,16 @@ export default function AccountantDashboard() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900">CEO (Isaac B Zeah)</h4>
-                              <p className="text-xs text-gray-500">40% of team share</p>
+                              <p className="text-xs text-gray-500">Combined share earnings</p>
                             </div>
                           </div>
                           <p className="text-2xl font-bold text-emerald-600">
-                            {formatCurrency(totalTeamFee * (40/95))}
+                            {formatCurrency(parseFloat(paymentStatus.team?.find((t: any) => t.payment_type === 'ceo')?.total_earned || 0))}
                           </p>
-                          <p className="text-xs text-gray-500 mt-2">40% of team share</p>
+                          <p className="text-xs text-gray-500 mt-2">From both methods</p>
                           {(() => {
                             const teamStatus = paymentStatus.team?.find((t: any) => t.payment_type === 'ceo');
-                            const unpaidAmount = teamStatus?.unpaid_amount || totalTeamFee * (40/95);
+                            const unpaidAmount = teamStatus?.unpaid_amount || teamStatus?.total_earned || 0;
                             const isPaid = teamStatus?.payment_status === 'paid';
                             const isPartial = teamStatus?.payment_status === 'partial';
                             
@@ -1827,7 +1967,7 @@ export default function AccountantDashboard() {
                                 
                                 {unpaidAmount > 0 && (
                                   <button 
-                                    onClick={() => handlePayNow({}, 'other_team')}
+                                    onClick={() => handlePayNow({}, 'ceo')}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-sm mb-2"
                                   >
                                     <DollarSign size={16} /> Pay CEO
@@ -1853,16 +1993,16 @@ export default function AccountantDashboard() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900">Accountant</h4>
-                              <p className="text-xs text-gray-500">15% of team share</p>
+                              <p className="text-xs text-gray-500">Combined share earnings</p>
                             </div>
                           </div>
                           <p className="text-2xl font-bold text-purple-600">
-                            {formatCurrency(totalTeamFee * (15/95))}
+                            {formatCurrency(parseFloat(paymentStatus.team?.find((t: any) => t.payment_type === 'accountant')?.total_earned || 0))}
                           </p>
-                          <p className="text-xs text-gray-500 mt-2">15% of team share</p>
+                          <p className="text-xs text-gray-500 mt-2">From both methods</p>
                           {(() => {
                             const teamStatus = paymentStatus.team?.find((t: any) => t.payment_type === 'accountant');
-                            const unpaidAmount = teamStatus?.unpaid_amount || totalTeamFee * (15/95);
+                            const unpaidAmount = teamStatus?.unpaid_amount || teamStatus?.total_earned || 0;
                             const isPaid = teamStatus?.payment_status === 'paid';
                             const isPartial = teamStatus?.payment_status === 'partial';
                             
@@ -1917,16 +2057,16 @@ export default function AccountantDashboard() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900">IT Specialist</h4>
-                              <p className="text-xs text-gray-500">25% of team share</p>
+                              <p className="text-xs text-gray-500">Combined share earnings</p>
                             </div>
                           </div>
                           <p className="text-2xl font-bold text-blue-600">
-                            {formatCurrency(totalTeamFee * (25/95))}
+                            {formatCurrency(parseFloat(paymentStatus.team?.find((t: any) => t.payment_type === 'it_specialist')?.total_earned || 0))}
                           </p>
-                          <p className="text-xs text-gray-500 mt-2">25% of team share</p>
+                          <p className="text-xs text-gray-500 mt-2">From both methods</p>
                           {(() => {
                             const teamStatus = paymentStatus.team?.find((t: any) => t.payment_type === 'it_specialist');
-                            const unpaidAmount = teamStatus?.unpaid_amount || totalTeamFee * (25/95);
+                            const unpaidAmount = teamStatus?.unpaid_amount || teamStatus?.total_earned || 0;
                             const isPaid = teamStatus?.payment_status === 'paid';
                             const isPartial = teamStatus?.payment_status === 'partial';
                             
@@ -1978,16 +2118,16 @@ export default function AccountantDashboard() {
                             </div>
                             <div>
                               <h4 className="font-semibold text-gray-900">Other Members</h4>
-                              <p className="text-xs text-gray-500">15% of team share</p>
+                              <p className="text-xs text-gray-500">Combined share earnings</p>
                             </div>
                           </div>
                           <p className="text-2xl font-bold text-pink-600">
-                            {formatCurrency(totalTeamFee * (15/95))}
+                            {formatCurrency(parseFloat(paymentStatus.team?.find((t: any) => t.payment_type === 'other_team')?.total_earned || 0))}
                           </p>
-                          <p className="text-xs text-gray-500 mt-2">15% of team share</p>
+                          <p className="text-xs text-gray-500 mt-2">From both methods</p>
                           {(() => {
                             const teamStatus = paymentStatus.team?.find((t: any) => t.payment_type === 'other_team');
-                            const unpaidAmount = teamStatus?.unpaid_amount || totalTeamFee * (15/95);
+                            const unpaidAmount = teamStatus?.unpaid_amount || teamStatus?.total_earned || 0;
                             const isPaid = teamStatus?.payment_status === 'paid';
                             const isPartial = teamStatus?.payment_status === 'partial';
                             
@@ -2036,20 +2176,24 @@ export default function AccountantDashboard() {
                         <h4 className="font-semibold text-gray-900 mb-3">Distribution Breakdown:</h4>
                         <div className="grid md:grid-cols-2 gap-4 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Accountant (40%):</span>
-                            <span className="font-semibold text-purple-600">6% of total</span>
+                            <span className="text-gray-600">Assignments:</span>
+                            <span className="font-semibold text-emerald-600">Equal split from 40% team pool</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">IT Specialist (40%):</span>
-                            <span className="font-semibold text-blue-600">6% of total</span>
+                            <span className="text-gray-600">Partner/Donor:</span>
+                            <span className="font-semibold text-blue-600">CEO 40%, IT 25%, Accountant 15%, Others 15%</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Other Members (20%):</span>
-                            <span className="font-semibold text-pink-600">3% of total</span>
+                            <span className="text-gray-600">Website:</span>
+                            <span className="font-semibold text-purple-600">10% from assignments, 5% from partner/donor</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Combined team earned:</span>
+                            <span className="font-semibold text-pink-600">{formatCurrency(combinedTeamEarned)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Total Team Share:</span>
-                            <span className="font-semibold text-gray-900">15% of total</span>
+                            <span className="font-semibold text-gray-900">From both methods</span>
                           </div>
                         </div>
                       </div>
@@ -2065,15 +2209,15 @@ export default function AccountantDashboard() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant (75%)</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consultant (50%)</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Website (10%)</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team (15%)</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Team (40%)</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {earnings.map((e) => (
+                      {paginate(sortedEarnings, earningsPage).map((e) => (
                         <tr key={e.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium">{e.consultant_name}</td>
                           <td className="px-4 py-3 text-sm text-gray-600">{e.consultant_email}</td>
@@ -2108,8 +2252,8 @@ export default function AccountantDashboard() {
                 
                 {/* Mobile Card View */}
                 <div className="block md:hidden space-y-3">
-                  {expenses.length > 0 ? (
-                    expenses.map((e) => (
+                  {sortedExpenses.length > 0 ? (
+                    paginate(sortedExpenses, expensesPage).map((e) => (
                       <div key={e.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                         <div className="flex justify-between items-start mb-2">
                           <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
@@ -2164,8 +2308,8 @@ export default function AccountantDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {expenses.length > 0 ? (
-                        expenses.map((e) => (
+                      {sortedExpenses.length > 0 ? (
+                        paginate(sortedExpenses, expensesPage).map((e) => (
                           <tr key={e.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">{formatDate(e.expense_date)}</td>
                             <td className="px-4 py-3 text-sm"><span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">{e.category}</span></td>
@@ -2203,6 +2347,15 @@ export default function AccountantDashboard() {
                     </tbody>
                   </table>
                 </div>
+                {sortedExpenses.length > 0 && (
+                  <PaginationControls
+                    currentPage={expensesPage}
+                    totalPages={Math.max(1, Math.ceil(sortedExpenses.length / itemsPerPage))}
+                    onPageChange={setExpensesPage}
+                    totalItems={sortedExpenses.length}
+                    itemsPerPage={itemsPerPage}
+                  />
+                )}
               </div>
             )}
 
@@ -2271,7 +2424,7 @@ export default function AccountantDashboard() {
                       />
                       <div>
                         <span className="text-sm sm:text-base font-semibold text-gray-900">Distribute to Team Members</span>
-                        <p className="text-xs sm:text-sm text-gray-600">Check this to give 15% team share (Accountant 6%, IT 6%, Others 3%)</p>
+                        <p className="text-xs sm:text-sm text-gray-600">Enable team distribution for partner/donor payments (CEO 40%, IT 25%, Accountant 15%, Others 15%, Website 5%)</p>
                       </div>
                     </label>
                   </div>
@@ -2634,7 +2787,7 @@ export default function AccountantDashboard() {
               
               {paymentHistory.length > 0 ? (
                 <div className="space-y-4">
-                  {paymentHistory.map((payment: any) => (
+                  {paginate(sortedPaymentHistory, paymentHistoryPage).map((payment: any) => (
                     <div key={payment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -2669,6 +2822,13 @@ export default function AccountantDashboard() {
                   <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200 mt-6">
                     <p className="font-semibold text-gray-900">Total Paid: {formatCurrency(paymentHistory.reduce((sum: number, p: any) => sum + parseFloat(p.amount), 0))}</p>
                   </div>
+                  <PaginationControls
+                    currentPage={paymentHistoryPage}
+                    totalPages={Math.max(1, Math.ceil(sortedPaymentHistory.length / itemsPerPage))}
+                    onPageChange={setPaymentHistoryPage}
+                    totalItems={sortedPaymentHistory.length}
+                    itemsPerPage={itemsPerPage}
+                  />
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500">
@@ -2799,7 +2959,7 @@ export default function AccountantDashboard() {
                 {/* Team Distribution */}
                 <div className="mb-6">
                   <div className="bg-emerald-600 text-white px-4 py-2 font-bold text-lg mb-4">TEAM SHARE DISTRIBUTION</div>
-                  <p className="mb-3 font-semibold">Total Team Share: {formatCurrency(reportData.totalTeamFee)}</p>
+                  <p className="mb-3 font-semibold">Total Team Share: {formatCurrency(reportData.paymentStatus?.team?.reduce((sum: number, t: any) => sum + parseFloat(t.total_earned || 0), 0) || reportData.totalTeamFee)}</p>
                   <div className="bg-white rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100">
@@ -2813,21 +2973,21 @@ export default function AccountantDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { name: 'CEO', type: 'ceo', percent: 40/95 },
-                          { name: 'IT Specialist', type: 'it_specialist', percent: 25/95 },
-                          { name: 'Accountant', type: 'accountant', percent: 15/95 },
-                          { name: 'Other Members', type: 'other_team', percent: 15/95 }
-                        ].map((member, i) => {
-                          const earned = reportData.totalTeamFee * member.percent;
-                          const status = reportData.paymentStatus?.team?.find((t: any) => t.payment_type === member.type);
+                        {(reportData.paymentStatus?.team || []).map((status: any, i: number) => {
+                          const memberNames: Record<string, string> = {
+                            ceo: 'CEO',
+                            it_specialist: 'IT Specialist',
+                            accountant: 'Accountant',
+                            other_team: 'Other Members'
+                          };
+                          const earned = parseFloat(status?.total_earned || 0);
                           const totalPaid = parseFloat(status?.total_paid || 0);
-                          const unpaid = earned - totalPaid;
+                          const unpaid = parseFloat(status?.unpaid_amount || (earned - totalPaid));
                           const paymentStatus = unpaid <= 0 ? 'paid' : (totalPaid > 0 ? 'partial' : 'unpaid');
                           return (
                             <tr key={i} className="border-t">
-                              <td className="px-3 py-2">{member.name}</td>
-                              <td className="px-3 py-2">{Math.round(member.percent * 95)}%</td>
+                              <td className="px-3 py-2">{memberNames[status.payment_type] || status.payment_type}</td>
+                              <td className="px-3 py-2">Mixed</td>
                               <td className="px-3 py-2 font-bold">{formatCurrency(earned)}</td>
                               <td className="px-3 py-2 font-bold text-green-600">{formatCurrency(totalPaid)}</td>
                               <td className="px-3 py-2 font-bold text-red-600">{formatCurrency(unpaid)}</td>
@@ -2971,51 +3131,6 @@ export default function AccountantDashboard() {
             </div>
           </div>
         )}
-
-        {/* Mobile Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg md:hidden z-40">
-          <div className="flex items-center justify-around px-1 py-2">
-            <button 
-              onClick={() => setActiveTab('overview')}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${activeTab === 'overview' ? 'text-emerald-600' : 'text-gray-600'}`}
-            >
-              <BarChart3 size={22} />
-              <span className="text-[10px] font-medium">Dashboard</span>
-            </button>
-            
-            <button 
-              onClick={() => setActiveTab('earnings')}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${activeTab === 'earnings' ? 'text-emerald-600' : 'text-gray-600'}`}
-            >
-              <FileText size={22} />
-              <span className="text-[10px] font-medium">Earnings</span>
-            </button>
-            
-            <button 
-              onClick={() => setActiveTab('transactions')}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${activeTab === 'transactions' ? 'text-emerald-600' : 'text-gray-600'}`}
-            >
-              <MessageSquare size={22} />
-              <span className="text-[10px] font-medium">Transactions</span>
-            </button>
-            
-            <button 
-              onClick={() => setActiveTab('all payments')}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${activeTab === 'all payments' ? 'text-emerald-600' : 'text-gray-600'}`}
-            >
-              <Bell size={22} />
-              <span className="text-[10px] font-medium">Payments</span>
-            </button>
-            
-            <button 
-              onClick={() => setActiveTab('expenses')}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${activeTab === 'expenses' ? 'text-emerald-600' : 'text-gray-600'}`}
-            >
-              <TrendingDown size={22} />
-              <span className="text-[10px] font-medium">Expenses</span>
-            </button>
-          </div>
-        </div>
 
         {/* Logout Confirmation Modal */}
         {showLogoutConfirm && (

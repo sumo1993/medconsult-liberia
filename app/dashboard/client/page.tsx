@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, FileText, MessageSquare, ClipboardList, LogOut, User, Upload, Search, Bell, Calendar, Inbox, CheckCircle, TrendingUp, Clock, Award, Zap, HelpCircle, DollarSign, ArrowRight, Activity, Target, RefreshCw, BarChart3, Users } from 'lucide-react';
+import { BookOpen, FileText, ClipboardList, LogOut, Upload, Inbox, MessageSquare, CheckCircle, Clock, Zap, HelpCircle, DollarSign, ArrowRight, Activity, Target, RefreshCw } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -172,7 +172,7 @@ export default function ClientDashboard() {
   useAccountStatus();
   
   // Get notification counts
-  const { counts: notificationCounts } = useNotifications('client');
+  const { counts: notificationCounts, markCategorySeen } = useNotifications('client');
 
   useEffect(() => {
     // Load age visibility preference from localStorage
@@ -391,27 +391,12 @@ export default function ClientDashboard() {
     },
     {
       title: 'My Inbox',
-      description: 'View messages and consultant replies',
+      description: 'View messages, send new chats, and see consultant replies',
       icon: Inbox,
       href: '/dashboard/client/inbox',
       color: 'bg-indigo-500',
       stat: stats.unreadMessages,
       statLabel: 'Unread',
-    },
-    {
-      title: 'Contact Consultant',
-      description: 'Send messages and ask questions',
-      icon: MessageSquare,
-      href: '/dashboard/client/messages',
-      color: 'bg-orange-500',
-    },
-    {
-      title: 'My Profile',
-      description: 'Update your profile and settings',
-      icon: User,
-      href: '/dashboard/client/profile',
-      color: 'bg-gray-500',
-      link: '/dashboard/client/messages',
     },
   ];
 
@@ -702,13 +687,6 @@ export default function ClientDashboard() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
-              onClick={() => router.push('/dashboard/client/profile')}
-              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 hover:border-emerald-500"
-            >
-              <User className="text-gray-600" size={24} />
-              <span className="text-xs font-semibold text-gray-700">My Profile</span>
-            </button>
-            <button
               onClick={() => router.push('/dashboard/client/help')}
               className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 hover:border-emerald-500"
             >
@@ -727,7 +705,7 @@ export default function ClientDashboard() {
               className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 hover:border-emerald-500"
             >
               <Activity className="text-gray-600" size={24} />
-              <span className="text-xs font-semibold text-gray-700">Activity</span>
+              <span className="text-xs font-semibold text-gray-700">Settings</span>
             </button>
           </div>
         </div>
@@ -774,7 +752,12 @@ export default function ClientDashboard() {
           {menuItems.map((item, index) => (
             <div
               key={index}
-              onClick={() => router.push(item.href)}
+              onClick={() => {
+                if (item.href === '/dashboard/client/assignments') {
+                  markCategorySeen('unreadAssignmentMessages');
+                }
+                router.push(item.href);
+              }}
               className="bg-white rounded-lg shadow hover:shadow-xl transition-all cursor-pointer border border-gray-200 hover:border-emerald-500 p-4 sm:p-5 md:p-6 relative"
             >
               {/* Notification Badge - Top Right */}
@@ -797,72 +780,6 @@ export default function ClientDashboard() {
         </div>
       </main>
 
-      {/* Beautiful Bottom Navigation Bar - Mobile Only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-800 to-gray-900 shadow-lg z-50 border-t border-gray-700">
-        <div className="max-w-7xl mx-auto px-2">
-          <div className="flex items-center justify-around h-16">
-            {/* Dashboard */}
-            <button
-              onClick={() => router.push('/dashboard/client')}
-              className="flex flex-col items-center px-3 py-2 text-emerald-400 hover:text-emerald-300 transition-colors"
-            >
-              <BarChart3 size={24} />
-              <span className="text-xs mt-1 font-medium">Dashboard</span>
-            </button>
-
-            {/* Assignments */}
-            <button
-              onClick={() => router.push('/dashboard/client/assignments')}
-              className="flex flex-col items-center px-3 py-2 text-gray-300 hover:text-white transition-colors relative"
-            >
-              <FileText size={24} />
-              <span className="text-xs mt-1 font-medium">Assignments</span>
-              {stats.myAssignments > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {stats.myAssignments}
-                </span>
-              )}
-            </button>
-
-            {/* Messages */}
-            <button
-              onClick={() => router.push('/dashboard/client/inbox')}
-              className="flex flex-col items-center px-3 py-2 text-gray-300 hover:text-white transition-colors relative"
-            >
-              <MessageSquare size={24} />
-              <span className="text-xs mt-1 font-medium">Messages</span>
-              {stats.unreadMessages > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {stats.unreadMessages}
-                </span>
-              )}
-            </button>
-
-            {/* Alerts */}
-            <button
-              onClick={() => router.push('/dashboard/client/alerts')}
-              className="flex flex-col items-center px-3 py-2 text-gray-300 hover:text-white transition-colors relative"
-            >
-              <Bell size={24} />
-              <span className="text-xs mt-1 font-medium">Alerts</span>
-              {(notificationCounts.messages + notificationCounts.appointments + notificationCounts.assignments) > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {notificationCounts.messages + notificationCounts.appointments + notificationCounts.assignments}
-                </span>
-              )}
-            </button>
-
-            {/* Profile */}
-            <button
-              onClick={() => router.push('/dashboard/client/profile')}
-              className="flex flex-col items-center px-3 py-2 text-gray-300 hover:text-white transition-colors"
-            >
-              <Users size={24} />
-              <span className="text-xs mt-1 font-medium">Profile</span>
-            </button>
-          </div>
-        </div>
-      </nav>
     </div>
   );
 }

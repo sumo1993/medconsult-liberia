@@ -3,7 +3,10 @@ import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 import { verify } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set.');
+}
 
 interface AuthUser {
   userId: number;
@@ -65,13 +68,11 @@ export async function GET(
 
     const assignment = requests[0];
 
-    // Check authorization - allow client, assigned consultant, management, admin
     const isClient = assignment.client_id === user.userId;
     const isAssignedConsultant = assignment.consultant_id === user.userId || assignment.doctor_id === user.userId;
     const isManagementOrAdmin = ['management', 'admin'].includes(user.role);
-    const isConsultantViewingReference = user.role === 'consultant'; // Consultants can view completed work for reference
 
-    if (!isClient && !isAssignedConsultant && !isManagementOrAdmin && !isConsultantViewingReference) {
+    if (!isClient && !isAssignedConsultant && !isManagementOrAdmin) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

@@ -45,10 +45,17 @@ export async function PUT(request: NextRequest) {
 
     // Update each setting
     for (const setting of settings) {
-      await pool.execute<ResultSetHeader>(
+      const [updateResult] = await pool.execute<ResultSetHeader>(
         'UPDATE site_settings SET setting_value = ? WHERE setting_key = ?',
         [setting.value, setting.key]
       );
+
+      if ((updateResult.affectedRows || 0) === 0) {
+        await pool.execute<ResultSetHeader>(
+          'INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?)',
+          [setting.key, setting.value]
+        );
+      }
     }
 
     return NextResponse.json({

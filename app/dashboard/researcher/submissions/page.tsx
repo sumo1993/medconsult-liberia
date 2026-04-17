@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Upload, Search, Filter, Eye, Calendar, MapPin, Database } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Submission {
   id: number;
@@ -21,6 +22,8 @@ export default function SubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchSubmissions();
@@ -49,6 +52,15 @@ export default function SubmissionsPage() {
     const matchesStatus = statusFilter === 'all' || sub.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+  const sortedSubmissions = [...filteredSubmissions].sort(
+    (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedSubmissions.length / itemsPerPage));
+  const paginatedSubmissions = sortedSubmissions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, submissions]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -174,7 +186,7 @@ export default function SubmissionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredSubmissions.map((submission) => (
+                  {paginatedSubmissions.map((submission) => (
                     <tr key={submission.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <p className="font-medium text-gray-900">{submission.project_title}</p>
@@ -221,11 +233,16 @@ export default function SubmissionsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="px-6 py-4 border-t border-gray-100">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           </div>
         )}
       </main>
     </div>
   );
 }
-
-

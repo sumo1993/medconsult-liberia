@@ -40,6 +40,15 @@ const generateCaptcha = () => {
   return { question, answer };
 };
 
+function normalizeEmail(value: string): string {
+  return value
+    .trim()
+    .replace(/＠/g, '@')
+    .replace(/[。．｡]/g, '.')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -71,6 +80,13 @@ export default function LoginPage() {
     setError('');
     setCaptchaError('');
 
+    const normalizedEmail = normalizeEmail(formData.email);
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(normalizedEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     // Verify CAPTCHA
     if (parseInt(captchaInput) !== captcha.answer) {
       setCaptchaError('Incorrect answer. Please try again.');
@@ -84,7 +100,10 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          email: normalizedEmail,
+        }),
       });
 
       const data = await response.json();
@@ -95,30 +114,25 @@ export default function LoginPage() {
           localStorage.setItem('auth-token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
         }
-        
-        // Redirect based on role
-        switch (data.user.role) {
-          case 'admin':
-            router.push('/dashboard/admin');
-            break;
-          case 'management':
-            router.push('/dashboard/management');
-            break;
-          case 'accountant':
-            router.push('/dashboard/accountant');
-            break;
-          case 'consultant':
-            router.push('/dashboard/consultant');
-            break;
-          case 'researcher':
-            router.push('/dashboard/researcher');
-            break;
-          case 'client':
-            router.push('/dashboard/client');
-            break;
-          default:
-            router.push('/dashboard');
-        }
+
+        const role = data.user?.role as string | undefined;
+        const path =
+          role === 'admin'
+            ? '/dashboard/admin'
+            : role === 'management'
+              ? '/dashboard/management'
+              : role === 'accountant'
+                ? '/dashboard/accountant'
+                : role === 'consultant'
+                  ? '/dashboard/consultant'
+                  : role === 'researcher'
+                    ? '/dashboard/researcher'
+                    : role === 'census'
+                      ? '/dashboard/field'
+                      : role === 'client'
+                        ? '/dashboard/client'
+                        : '/dashboard';
+        router.replace(path);
       } else {
         setError(data.error || 'Login failed');
         refreshCaptcha();
@@ -175,10 +189,14 @@ export default function LoginPage() {
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="email"
+                spellCheck={false}
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onBlur={(e) => setFormData({ ...formData, email: normalizeEmail(e.target.value) })}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
               />
             </div>

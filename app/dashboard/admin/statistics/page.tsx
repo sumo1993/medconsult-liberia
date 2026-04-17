@@ -12,6 +12,19 @@ interface Stats {
   years_experience: number;
 }
 
+const toNumber = (value: unknown, fallback = 0): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+};
+
+const normalizeStats = (data: Partial<Stats> | null | undefined): Stats => ({
+  research_projects: toNumber(data?.research_projects),
+  clinic_setups: toNumber(data?.clinic_setups),
+  rating: toNumber(data?.rating, 5),
+  total_consultations: toNumber(data?.total_consultations),
+  years_experience: toNumber(data?.years_experience),
+});
+
 export default function StatisticsPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats>({
@@ -37,7 +50,7 @@ export default function StatisticsPage() {
       const response = await fetch('/api/statistics');
       if (response.ok) {
         const data = await response.json();
-        setStats(data);
+        setStats(normalizeStats(data));
       }
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -49,11 +62,12 @@ export default function StatisticsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const payload = normalizeStats(stats);
       const response = await fetch('/api/statistics', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(stats),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -75,7 +89,7 @@ export default function StatisticsPage() {
   };
 
   const handleChange = (field: keyof Stats, value: string) => {
-    const numValue = field === 'rating' ? parseFloat(value) : parseInt(value);
+    const numValue = value.trim() === '' ? 0 : toNumber(value);
     setStats({ ...stats, [field]: numValue });
   };
 
@@ -221,7 +235,7 @@ export default function StatisticsPage() {
               <div className="text-emerald-100 text-sm">Consultations</div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-white mb-1">{stats.rating.toFixed(2)}</div>
+              <div className="text-3xl font-bold text-white mb-1">{toNumber(stats.rating, 0).toFixed(2)}</div>
               <div className="text-emerald-100 text-sm">Rating</div>
             </div>
           </div>

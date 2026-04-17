@@ -10,6 +10,9 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [devResetLink, setDevResetLink] = useState('');
+  const [emailSent, setEmailSent] = useState<boolean | null>(null);
+  const [deliveryError, setDeliveryError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +29,14 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
+        setDevResetLink(data.devResetLink || '');
+        setEmailSent(typeof data.emailSent === 'boolean' ? data.emailSent : null);
+        setDeliveryError(data.deliveryError || '');
         setSuccess(true);
       } else {
         setError(data.error || 'Failed to send reset instructions');
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
@@ -59,7 +65,7 @@ export default function ForgotPasswordPage() {
             Reset your password
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email address and we'll help you reset your password
+            Enter your email address and we&apos;ll help you reset your password
           </p>
         </div>
 
@@ -68,14 +74,93 @@ export default function ForgotPasswordPage() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
               <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-green-900 mb-2">
-                Check your email
+                {emailSent === false ? 'Reset link generated' : 'Check your email'}
               </h3>
               <p className="text-sm text-green-800 mb-4">
-                We've sent password reset instructions to <strong>{email}</strong>
+                {emailSent === false ? (
+                  <>
+                    We couldn&apos;t deliver email right now. Use the reset link below for <strong>{email}</strong>.
+                  </>
+                ) : (
+                  <>
+                    We&apos;ve sent password reset instructions to <strong>{email}</strong>
+                  </>
+                )}
               </p>
+              {emailSent === false && deliveryError && (
+                <p className="text-xs text-amber-800 mb-3 text-left">
+                  Email delivery error: {deliveryError}
+                </p>
+              )}
+              {emailSent === false && deliveryError && (
+                <div className="text-xs text-gray-700 mb-4 space-y-2 text-left rounded-md bg-white/80 border border-amber-200 p-3">
+                  <p className="font-semibold text-gray-900">Fix Gmail SMTP (535 / wrong password)</p>
+                  <p className="text-gray-600 mb-2">
+                    <strong>SMTP_USER</strong> must be the <em>exact</em> Gmail you were logged into when you created the App
+                    Password. If that was a different address than in <code className="bg-gray-100 px-1 rounded">.env.local</code>,
+                    Gmail returns “Username and Password not accepted.”
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5">
+                    <li>
+                      Turn on 2-Step Verification, then create a new{' '}
+                      <strong>App Password</strong> for “Mail” at{' '}
+                      <a
+                        href="https://myaccount.google.com/apppasswords"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-700 underline"
+                      >
+                        myaccount.google.com/apppasswords
+                      </a>
+                      . Put the 16 characters in <code className="bg-gray-100 px-1 rounded">SMTP_PASS</code> (spaces optional).
+                    </li>
+                    <li>
+                      If Google blocked a login: in the <strong>same browser</strong>, sign in first as your sending
+                      account (e.g. medconsultliberia@gmail.com), then open{' '}
+                      <a
+                        href="https://accounts.google.com/DisplayUnlockCaptcha"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-700 underline break-all"
+                      >
+                        accounts.google.com/DisplayUnlockCaptcha
+                      </a>{' '}
+                      — do <strong>not</strong> use the <code className="bg-gray-100 px-1 rounded">/b/0/</code> variant
+                      (that often shows only “Sign in”). Alternative:{' '}
+                      <a
+                        href="https://www.google.com/accounts/DisplayUnlockCaptcha"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-700 underline break-all"
+                      >
+                        google.com/accounts/DisplayUnlockCaptcha
+                      </a>
+                      . Click Continue if prompted.
+                    </li>
+                    <li>
+                      <code className="bg-gray-100 px-1 rounded">SMTP_USER</code> must be the full sending address
+                      (e.g. medconsultliberia@gmail.com). Restart <code className="bg-gray-100 px-1 rounded">npm run dev</code>{' '}
+                      after saving <code className="bg-gray-100 px-1 rounded">.env.local</code>. Run{' '}
+                      <code className="bg-gray-100 px-1 rounded">npm run verify:smtp</code> to test credentials without
+                      using the forgot-password form.
+                    </li>
+                  </ol>
+                </div>
+              )}
               <p className="text-xs text-green-700 mb-4">
-                If you don't see the email, check your spam folder or contact support.
+                If you don&apos;t see the email, check your spam folder or contact support.
               </p>
+              {devResetLink && (
+                <div className="mb-4 rounded-md border border-green-300 bg-white p-3 text-left">
+                  <p className="text-xs font-semibold text-green-900 mb-1">Local development reset link:</p>
+                  <a
+                    href={devResetLink}
+                    className="break-all text-xs text-emerald-700 hover:text-emerald-600 underline"
+                  >
+                    {devResetLink}
+                  </a>
+                </div>
+              )}
               <Link
                 href="/login"
                 className="inline-flex items-center text-sm font-medium text-green-700 hover:text-green-600"

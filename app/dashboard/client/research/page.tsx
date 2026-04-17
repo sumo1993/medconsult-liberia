@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Eye, Calendar, Search } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface ResearchPost {
   id: number;
@@ -21,6 +22,8 @@ export default function ClientResearchPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPost, setSelectedPost] = useState<ResearchPost | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchPosts();
@@ -45,6 +48,23 @@ export default function ClientResearchPage() {
     (post.summary && post.summary.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (post.category && post.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+  const sortedPosts = [...filteredPosts].sort(
+    (a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedPosts.length / itemsPerPage));
+  const paginatedPosts = sortedPosts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, posts]);
+
+  useEffect(() => {
+    if (!selectedPost && sortedPosts.length > 0) {
+      setSelectedPost(sortedPosts[0]);
+    } else if (selectedPost && !sortedPosts.some((p) => p.id === selectedPost.id)) {
+      setSelectedPost(sortedPosts[0] || null);
+    }
+  }, [sortedPosts, selectedPost]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -86,7 +106,7 @@ export default function ClientResearchPage() {
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <p className="text-gray-500">Loading research articles...</p>
           </div>
-        ) : filteredPosts.length === 0 ? (
+        ) : sortedPosts.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <BookOpen size={64} className="mx-auto mb-4 text-gray-300" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -103,7 +123,7 @@ export default function ClientResearchPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Research List */}
             <div className="lg:col-span-1 space-y-4">
-              {filteredPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <div
                   key={post.id}
                   onClick={() => setSelectedPost(post)}
@@ -129,6 +149,11 @@ export default function ClientResearchPage() {
                   </div>
                 </div>
               ))}
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
 
             {/* Research Detail */}
@@ -159,9 +184,10 @@ export default function ClientResearchPage() {
                   )}
 
                   <div className="prose max-w-none">
-                    <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                      {selectedPost.content}
-                    </div>
+                    <div
+                      className="text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: selectedPost.content || '' }}
+                    />
                   </div>
                 </div>
               ) : (

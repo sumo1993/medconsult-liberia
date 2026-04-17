@@ -100,6 +100,11 @@ export default function Footer() {
                 </a>
               </li>
               <li>
+                <a href="/media" className="text-gray-400 hover:text-emerald-500 transition-colors">
+                  Media
+                </a>
+              </li>
+              <li>
                 <a href="/sitemap" className="text-gray-400 hover:text-emerald-500 transition-colors">
                   Sitemap
                 </a>

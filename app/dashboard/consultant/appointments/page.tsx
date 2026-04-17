@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, User, MapPin, Phone, Mail, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Appointment {
   id: number;
@@ -22,6 +23,9 @@ export default function ConsultantAppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [pastPage, setPastPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchAppointments();
@@ -74,12 +78,22 @@ export default function ConsultantAppointmentsPage() {
   const upcomingAppointments = filteredAppointments.filter(a => {
     const appointmentDate = new Date(a.appointment_date);
     return appointmentDate >= new Date() && a.status !== 'cancelled';
-  });
+  }).sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime());
 
   const pastAppointments = filteredAppointments.filter(a => {
     const appointmentDate = new Date(a.appointment_date);
     return appointmentDate < new Date() || a.status === 'cancelled';
-  });
+  }).sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime());
+
+  const upcomingTotalPages = Math.max(1, Math.ceil(upcomingAppointments.length / itemsPerPage));
+  const pastTotalPages = Math.max(1, Math.ceil(pastAppointments.length / itemsPerPage));
+  const paginatedUpcoming = upcomingAppointments.slice((upcomingPage - 1) * itemsPerPage, upcomingPage * itemsPerPage);
+  const paginatedPast = pastAppointments.slice((pastPage - 1) * itemsPerPage, pastPage * itemsPerPage);
+
+  useEffect(() => {
+    setUpcomingPage(1);
+    setPastPage(1);
+  }, [filter, appointments]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -203,7 +217,7 @@ export default function ConsultantAppointmentsPage() {
                   Upcoming Appointments
                 </h2>
                 <div className="grid gap-4">
-                  {upcomingAppointments.map((appointment) => (
+                  {paginatedUpcoming.map((appointment) => (
                     <div
                       key={appointment.id}
                       className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
@@ -253,6 +267,11 @@ export default function ConsultantAppointmentsPage() {
                     </div>
                   ))}
                 </div>
+                <PaginationControls
+                  currentPage={upcomingPage}
+                  totalPages={upcomingTotalPages}
+                  onPageChange={setUpcomingPage}
+                />
               </div>
             )}
 
@@ -264,7 +283,7 @@ export default function ConsultantAppointmentsPage() {
                   Past Appointments
                 </h2>
                 <div className="grid gap-4">
-                  {pastAppointments.map((appointment) => (
+                  {paginatedPast.map((appointment) => (
                     <div
                       key={appointment.id}
                       className="bg-white rounded-lg shadow p-6 opacity-75"
@@ -297,6 +316,11 @@ export default function ConsultantAppointmentsPage() {
                     </div>
                   ))}
                 </div>
+                <PaginationControls
+                  currentPage={pastPage}
+                  totalPages={pastTotalPages}
+                  onPageChange={setPastPage}
+                />
               </div>
             )}
           </div>
@@ -305,4 +329,3 @@ export default function ConsultantAppointmentsPage() {
     </div>
   );
 }
-

@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ArrowLeft, Clock, DollarSign, Eye, CheckCircle, 
   FileText, AlertCircle, Filter, Search 
 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface AssignmentRequest {
   id: number;
+  client_id?: number;
   title: string;
   subject: string;
   description: string;
@@ -30,10 +32,15 @@ interface AssignmentRequest {
 
 export default function DoctorAssignmentRequestsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [requests, setRequests] = useState<AssignmentRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending');
+  const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const clientFilterParam = searchParams.get('client');
+  const clientFilterId = clientFilterParam ? Number(clientFilterParam) : null;
 
   useEffect(() => {
     fetchRequests();
@@ -116,6 +123,12 @@ export default function DoctorAssignmentRequestsPage() {
     return statusMap[status] || statusMap.pending_review;
   };
 
+  const getRequestTimestamp = (req: AssignmentRequest) => {
+    const created = req.created_at ? new Date(req.created_at).getTime() : NaN;
+    if (!Number.isNaN(created) && Number.isFinite(created)) return created;
+    return req.id || 0;
+  };
+
   const filteredRequests = requests.filter(req => {
     // Status filter
     let statusMatch = false;
@@ -139,12 +152,27 @@ export default function DoctorAssignmentRequestsPage() {
       req.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.subject.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return statusMatch && searchMatch;
+    // Client filter (from query param)
+    const hasValidClientFilter = Number.isFinite(clientFilterId) && (clientFilterId as number) > 0;
+    const clientMatch = hasValidClientFilter ? req.client_id === clientFilterId : true;
+
+    return statusMatch && searchMatch && clientMatch;
   });
+  const sortedRequests = [...filteredRequests].sort((a, b) => {
+    const byCreated = getRequestTimestamp(b) - getRequestTimestamp(a);
+    if (byCreated !== 0) return byCreated;
+    return (b.id || 0) - (a.id || 0);
+  });
+  const totalPages = Math.max(1, Math.ceil(sortedRequests.length / itemsPerPage));
+  const paginatedRequests = sortedRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const pendingCount = requests.filter(r => r.status === 'pending_review').length;
   const actionRequiredCount = requests.filter(r => ['negotiating', 'payment_uploaded'].includes(r.status)).length;
   const awaitingClientCount = requests.filter(r => ['price_proposed', 'payment_pending'].includes(r.status)).length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchTerm, requests, clientFilterId]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,9 +198,25 @@ export default function DoctorAssignmentRequestsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
+        {Number.isFinite(clientFilterId) && (clientFilterId as number) > 0 && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-sm text-blue-800">
+                Showing requests for client ID <span className="font-semibold">{clientFilterId}</span>.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/management/assignment-requests')}
+                className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-blue-300 text-blue-800 bg-white hover:bg-blue-100 text-sm font-medium"
+              >
+                Clear client filter
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Action Required Alert */}
         {actionRequiredCount > 0 && (
-          <div className="mb-6 bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+          <div className="mb-6 bg-orange-50 p-4 rounded-lg">
             <div className="flex items-center">
               <AlertCircle className="text-orange-500 mr-3" size={24} />
               <div>
@@ -303,7 +347,24 @@ export default function DoctorAssignmentRequestsPage() {
         {/* Requests List */}
         {!loading && filteredRequests.length > 0 && (
           <div className="space-y-4">
-            {filteredRequests.map((request) => {
+            <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing {paginatedRequests.length} of {sortedRequests.length} requests
+              </p>
+              <p className="text-sm font-medium text-gray-700">
+                Page {currentPage} of {totalPages}
+              </p>
+            </div>
+
+            {totalPages > 1 && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
+
+            {paginatedRequests.map((request) => {
               const statusInfo = getStatusInfo(request.status);
               const StatusIcon = statusInfo.icon;
               const needsAction = ['negotiating', 'payment_uploaded'].includes(request.status);
@@ -430,11 +491,18 @@ export default function DoctorAssignmentRequestsPage() {
                 </div>
               );
             })}
+            {totalPages > 1 && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         )}
 
-        {/* Mobile Bottom Navigation */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+        {/* Mobile Filter Bar */}
+        <div className="md:hidden fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20">
           <div className="grid grid-cols-3 gap-1.5 px-1.5 py-1.5">
             {[
               { key: 'pending', label: 'Pending', count: pendingCount, color: 'yellow' },

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileSpreadsheet, Download, Eye, Calendar, Filter, Search, FileText, BarChart2, BookOpen } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
+import Toast from '@/components/Toast';
 
 interface Report {
   id: number;
@@ -23,6 +25,9 @@ export default function ReportsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [typeFilter, setTypeFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchReports();
@@ -51,6 +56,15 @@ export default function ReportsPage() {
     const matchesType = typeFilter === 'all' || report.report_type === typeFilter;
     return matchesSearch && matchesType;
   });
+  const sortedReports = [...filteredReports].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedReports.length / itemsPerPage));
+  const paginatedReports = sortedReports.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [reports, searchQuery, typeFilter]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -73,11 +87,21 @@ export default function ReportsPage() {
 
   const handleDownload = (report: Report) => {
     // In production, this would download the actual file
-    alert(`Downloading: ${report.title}\n\nNote: This is a demo. In production, this would download the actual PDF/document file.`);
+    setToast({
+      message: `Downloading: ${report.title}. This demo does not include a real file yet.`,
+      type: 'info',
+    });
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -171,7 +195,7 @@ export default function ReportsPage() {
             <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading reports...</p>
           </div>
-        ) : filteredReports.length === 0 ? (
+        ) : sortedReports.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm">
             <FileSpreadsheet className="mx-auto mb-4 text-gray-300" size={64} />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Reports Found</h3>
@@ -186,7 +210,7 @@ export default function ReportsPage() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredReports.map((report) => (
+            {paginatedReports.map((report) => (
               <div
                 key={report.id}
                 className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-emerald-200 transition-all"
@@ -236,6 +260,15 @@ export default function ReportsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {!loading && sortedReports.length > 0 && (
+          <div className="mt-6">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
 
@@ -302,5 +335,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-

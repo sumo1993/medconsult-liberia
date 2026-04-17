@@ -12,14 +12,25 @@ export async function GET(request: NextRequest) {
     const userId = user.userId;
     const userRole = user.role;
 
-    // Get total team fees from all sources
-    const [totalTeamFees]: any = await pool.execute(`
-      SELECT 
-        SUM(COALESCE(team_fee, 0)) as total_team_fee
-      FROM consultant_earnings
+    // Method 1: assignment team pool (40% of assignment amount)
+    const [assignmentTeamFees]: any = await pool.execute(`
+      SELECT COALESCE(SUM(ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.40, 2)), 0) as assignment_team_fee
+      FROM users u
+      INNER JOIN assignment_requests ar ON u.id = COALESCE(ar.consultant_id, ar.doctor_id)
+      WHERE u.role IN ('management', 'consultant')
+      AND ar.status IN ('completed', 'payment_verified', 'payment_uploaded', 'in_progress')
+      AND (ar.final_price > 0 OR ar.negotiated_price > 0 OR ar.proposed_price > 0)
     `);
-    
-    const totalTeamFee = parseFloat(totalTeamFees[0]?.total_team_fee || 0);
+
+    // Method 2: partner/donor team pool (old logic)
+    const [partnerTeamFees]: any = await pool.execute(`
+      SELECT COALESCE(SUM(team_fee), 0) as partner_team_fee
+      FROM consultant_earnings
+      WHERE consultant_id IS NULL
+    `);
+
+    const assignmentTeamFee = parseFloat(assignmentTeamFees[0]?.assignment_team_fee || 0);
+    const partnerTeamFee = parseFloat(partnerTeamFees[0]?.partner_team_fee || 0);
 
     let earnings: {
       role: string;
@@ -41,17 +52,21 @@ export async function GET(request: NextRequest) {
 
     // Determine payment type based on role
     let paymentType = '';
-    let sharePercentage = 0;
+    let assignmentSharePercentage = 0;
+    let partnerSharePercentage = 0;
 
     if (userRole === 'admin') {
       paymentType = 'it_specialist';
-      sharePercentage = 25 / 95; // 25% of team share
+      assignmentSharePercentage = 0.25; // 10% of assignment total
+      partnerSharePercentage = 25 / 95;
     } else if (userRole === 'accountant') {
       paymentType = 'accountant';
-      sharePercentage = 15 / 95; // 15% of team share
+      assignmentSharePercentage = 0.25; // 10% of assignment total
+      partnerSharePercentage = 15 / 95;
     } else if (userRole === 'management') {
       paymentType = 'ceo';
-      sharePercentage = 40 / 95; // 40% of team share
+      assignmentSharePercentage = 0.25; // 10% of assignment total
+      partnerSharePercentage = 40 / 95;
       
       // Management also gets consultant earnings
       const [consultantEarnings]: any = await pool.execute(`
@@ -114,8 +129,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Role not eligible for team earnings' }, { status: 403 });
     }
 
-    // Calculate team share earnings
-    const teamShareEarned = totalTeamFee * sharePercentage;
+    // Calculate combined team share earnings from both methods
+    const assignmentEarned = assignmentTeamFee * assignmentSharePercentage;
+    const partnerEarned = partnerTeamFee * partnerSharePercentage;
+    const teamShareEarned = assignmentEarned + partnerEarned;
 
     // Get payments made to this user
     const [payments]: any = await pool.execute(`
@@ -165,6 +182,10 @@ export async function GET(request: NextRequest) {
 
     earnings.breakdown = {
       ...earnings.breakdown,
+      assignmentTeamFee,
+      partnerTeamFee,
+      assignmentEarned,
+      partnerEarned,
       teamShareEarned,
       teamSharePaid: totalPaid,
       teamShareUnpaid: teamShareEarned - totalPaid

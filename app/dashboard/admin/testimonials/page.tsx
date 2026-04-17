@@ -21,6 +21,7 @@ import {
   Image as ImageIcon,
   Loader2
 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Testimonial {
   id: number;
@@ -59,6 +60,8 @@ export default function AdminTestimonialsPage() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const fetchTestimonials = async () => {
     try {
@@ -305,6 +308,17 @@ export default function AdminTestimonialsPage() {
     }
   };
 
+  const sortedTestimonials = [...testimonials].sort((a, b) => {
+    if (a.display_order !== b.display_order) return a.display_order - b.display_order;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  const totalPages = Math.max(1, Math.ceil(sortedTestimonials.length / itemsPerPage));
+  const paginatedTestimonials = sortedTestimonials.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [testimonials]);
+
   if (isLoadingRole || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -363,7 +377,7 @@ export default function AdminTestimonialsPage() {
         )}
 
         {/* Testimonials Grid */}
-        {testimonials.length === 0 ? (
+        {sortedTestimonials.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl shadow-sm">
             <MessageSquareQuote className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No Testimonials Yet</h3>
@@ -378,7 +392,9 @@ export default function AdminTestimonialsPage() {
           </div>
         ) : (
           <div className="grid gap-6">
-            {testimonials.map((testimonial, index) => (
+            {paginatedTestimonials.map((testimonial) => {
+              const globalIndex = sortedTestimonials.findIndex((t) => t.id === testimonial.id);
+              return (
               <div
                 key={testimonial.id}
                 className={`bg-white rounded-xl shadow-sm p-6 ${!testimonial.is_active ? 'opacity-60' : ''}`}
@@ -432,7 +448,7 @@ export default function AdminTestimonialsPage() {
                     <div className="mt-4 flex items-center gap-3">
                       <button
                         onClick={() => moveTestimonial(testimonial, 'up')}
-                        disabled={index === 0}
+                        disabled={globalIndex === 0}
                         className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Move up"
                       >
@@ -440,7 +456,7 @@ export default function AdminTestimonialsPage() {
                       </button>
                       <button
                         onClick={() => moveTestimonial(testimonial, 'down')}
-                        disabled={index === testimonials.length - 1}
+                        disabled={globalIndex === sortedTestimonials.length - 1}
                         className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Move down"
                       >
@@ -475,8 +491,16 @@ export default function AdminTestimonialsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
+        )}
+        {sortedTestimonials.length > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </main>
 
@@ -649,5 +673,4 @@ export default function AdminTestimonialsPage() {
     </div>
   );
 }
-
 

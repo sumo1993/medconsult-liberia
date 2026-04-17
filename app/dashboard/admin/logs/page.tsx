@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Activity, User, FileText } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface ActivityLog {
   id: number;
@@ -18,6 +19,8 @@ export default function LogsPage() {
   const router = useRouter();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchLogs();
@@ -42,6 +45,12 @@ export default function LogsPage() {
     if (action.includes('create') || action.includes('register')) return <FileText size={16} className="text-green-500" />;
     return <Activity size={16} className="text-gray-500" />;
   };
+
+  const sortedLogs = [...logs].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedLogs.length / itemsPerPage));
+  const paginatedLogs = sortedLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -91,14 +100,14 @@ export default function LogsPage() {
                       Loading activity logs...
                     </td>
                   </tr>
-                ) : logs.length === 0 ? (
+                ) : sortedLogs.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                       No activity logs yet
                     </td>
                   </tr>
                 ) : (
-                  logs.map((log) => (
+                  paginatedLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
@@ -121,6 +130,15 @@ export default function LogsPage() {
               </tbody>
             </table>
           </div>
+          {!loading && sortedLogs.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={sortedLogs.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
         </div>
       </main>
     </div>

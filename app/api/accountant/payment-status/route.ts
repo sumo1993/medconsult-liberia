@@ -10,6 +10,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get payment status for all consultants
+    // Assignment split rule:
+    // - Assignee consultant: 50%
+    // - CEO: 10%
+    // - Website: 10%
+    // - IT + Accountant + Other team: 30% (combined with CEO = 40% team_fee)
+    // IMPORTANT: assignee is consultant_id (fallback doctor_id for legacy rows)
     const [consultantStatus] = await pool.execute(`
       SELECT 
         c.consultant_id,
@@ -31,9 +37,9 @@ export async function GET(request: NextRequest) {
           u.full_name as consultant_name,
           u.email as consultant_email,
           SUM(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0)) as total_amount,
-          SUM(ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.75, 2)) as consultant_share
+          SUM(ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.50, 2)) as consultant_share
         FROM users u
-        INNER JOIN assignment_requests ar ON u.id = ar.doctor_id
+        INNER JOIN assignment_requests ar ON u.id = COALESCE(ar.consultant_id, ar.doctor_id)
         WHERE u.role IN ('management', 'consultant')
         AND ar.status IN ('completed', 'payment_verified', 'payment_uploaded', 'in_progress')
         AND (ar.final_price > 0 OR ar.negotiated_price > 0 OR ar.proposed_price > 0)
@@ -45,23 +51,38 @@ export async function GET(request: NextRequest) {
       ORDER BY unpaid_amount DESC
     `);
 
-    // Get total team fees from all sources
-    const [totalTeamFees]: any = await pool.execute(`
-      SELECT 
-        SUM(COALESCE(team_fee, 0)) as total_team_fee
-      FROM consultant_earnings
+    // Method 1 (Assignments):
+    // - Consultant 50%
+    // - Team pool 40% (CEO/IT/Accountant/Others = 10% each)
+    const [assignmentTeamShares]: any = await pool.execute(`
+      SELECT
+        COALESCE(SUM(ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.40, 2)), 0) as assignment_team_fee
+      FROM users u
+      INNER JOIN assignment_requests ar ON u.id = COALESCE(ar.consultant_id, ar.doctor_id)
+      WHERE u.role IN ('management', 'consultant')
+      AND ar.status IN ('completed', 'payment_verified', 'payment_uploaded', 'in_progress')
+      AND (ar.final_price > 0 OR ar.negotiated_price > 0 OR ar.proposed_price > 0)
     `);
-    
-    const totalTeamFee = parseFloat(totalTeamFees[0]?.total_team_fee || 0);
-    
-    // Calculate what each team member should receive
-    // Universal distribution for ALL income: CEO 40%, IT 25%, Accountant 15%, Others 15%, Website 5%
-    // The team_fee already contains the correct amount based on source
-    
-    const ceoShare = totalTeamFee * (40 / 95); // 40% of team share (95% total)
-    const itShare = totalTeamFee * (25 / 95); // 25% of team share
-    const accountantShare = totalTeamFee * (15 / 95); // 15% of team share
-    const othersShare = totalTeamFee * (15 / 95); // 15% of team share
+
+    // Method 2 (Partner/Donor):
+    // consultant_earnings rows with consultant_id IS NULL store team_fee for non-assignment distributions
+    const [teamOnlyShares]: any = await pool.execute(`
+      SELECT COALESCE(SUM(team_fee), 0) as partner_team_fee
+      FROM consultant_earnings
+      WHERE consultant_id IS NULL
+    `);
+
+    const assignmentTeamFee = parseFloat(assignmentTeamShares[0]?.assignment_team_fee || 0);
+    const partnerTeamFee = parseFloat(teamOnlyShares[0]?.partner_team_fee || 0);
+    const totalTeamFee = assignmentTeamFee + partnerTeamFee;
+
+    // Combined team earnings:
+    // Assignments: equal 25% of assignment team pool each
+    // Partner/Donor: old logic 40/25/15/15 on partner team pool
+    const ceoShare = (assignmentTeamFee * 0.25) + (partnerTeamFee * (40 / 95));
+    const itShare = (assignmentTeamFee * 0.25) + (partnerTeamFee * (25 / 95));
+    const accountantShare = (assignmentTeamFee * 0.25) + (partnerTeamFee * (15 / 95));
+    const othersShare = (assignmentTeamFee * 0.25) + (partnerTeamFee * (15 / 95));
     
     // Get payment status for team members
     const [teamPayments]: any = await pool.execute(`
@@ -116,7 +137,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       consultants: consultantStatus,
-      team: teamStatus
+      team: teamStatus,
+      teamTotals: {
+        totalTeamFee,
+        assignmentTeamFee,
+        partnerTeamFee
+      }
     });
   } catch (error: any) {
     console.error('Error fetching payment status:', error);

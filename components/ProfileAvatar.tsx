@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { User } from 'lucide-react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface ProfileAvatarProps {
   userId?: number;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   onClick?: () => void;
+  showOnlineDot?: boolean;
 }
 
-export default function ProfileAvatar({ userId, size = 'md', className = '', onClick }: ProfileAvatarProps) {
+export default function ProfileAvatar({ userId, size = 'md', className = '', onClick, showOnlineDot = false }: ProfileAvatarProps) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isOnline } = useOnlineStatus();
 
   const sizeClasses = {
     sm: 'w-8 h-8',
@@ -50,11 +53,18 @@ export default function ProfileAvatar({ userId, size = 'md', className = '', onC
         headers: {
           ...(token && !userId ? { 'Authorization': `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         cache: 'no-store', // Prevent caching
       });
 
-      if (response.ok) {
+      if (response.status === 204) {
+        setPhotoUrl(null);
+      } else if (response.ok) {
         const blob = await response.blob();
+        if (!blob || blob.size === 0) {
+          setPhotoUrl(null);
+          return;
+        }
         // Revoke old URL before creating new one
         if (photoUrl) {
           URL.revokeObjectURL(photoUrl);
@@ -74,7 +84,7 @@ export default function ProfileAvatar({ userId, size = 'md', className = '', onC
 
   return (
     <div 
-      className={`${sizeClasses[size]} ${photoUrl ? 'bg-transparent' : 'bg-emerald-700'} rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all ${className}`}
+      className={`relative ${sizeClasses[size]} ${photoUrl ? 'bg-transparent' : 'bg-emerald-700'} rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-emerald-500 transition-all ${className}`}
       onClick={onClick}
     >
       {photoUrl ? (
@@ -86,6 +96,14 @@ export default function ProfileAvatar({ userId, size = 'md', className = '', onC
         />
       ) : (
         <User className="text-white" size={iconSizes[size]} />
+      )}
+      {showOnlineDot && (
+        <span
+          className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
+            isOnline ? 'bg-green-500' : 'bg-gray-300'
+          }`}
+          title={isOnline ? 'Active now' : 'Offline'}
+        />
       )}
     </div>
   );

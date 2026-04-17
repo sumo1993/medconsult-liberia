@@ -6,7 +6,7 @@ export interface User {
   id: number;
   email: string;
   full_name: string;
-  role: 'admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher';
+  role: 'admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher' | 'census';
   phone?: string;
   status: 'active' | 'inactive' | 'suspended';
   email_verified: boolean;
@@ -24,13 +24,58 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT id, email, full_name, role, phone, status, email_verified, created_at, last_login FROM users WHERE email = ?',
-      [email]
-    );
+    let rows: RowDataPacket[] = [];
+    try {
+      const [richRows] = await pool.execute<RowDataPacket[]>(
+        'SELECT id, email, full_name, role, phone, status, email_verified, created_at, last_login FROM users WHERE email = ?',
+        [email]
+      );
+      rows = richRows;
+    } catch {
+      try {
+        // Older schema fallback without status/email_verified columns
+        const [basicRows] = await pool.execute<RowDataPacket[]>(
+          'SELECT id, email, full_name, role, phone, created_at, last_login FROM users WHERE email = ?',
+          [email]
+        );
+        rows = basicRows.map((r) => ({
+          ...r,
+          status: 'active',
+          email_verified: true,
+        })) as RowDataPacket[];
+      } catch {
+        try {
+          const [phoneNumberRows] = await pool.execute<RowDataPacket[]>(
+            'SELECT id, email, full_name, role, phone_number as phone, created_at, last_login FROM users WHERE email = ?',
+            [email]
+          );
+          rows = phoneNumberRows.map((r) => ({
+            ...r,
+            status: 'active',
+            email_verified: true,
+          })) as RowDataPacket[];
+        } catch {
+          const [minimalRows] = await pool.execute<RowDataPacket[]>(
+            'SELECT id, email, full_name, role, created_at, last_login FROM users WHERE email = ?',
+            [email]
+          );
+          rows = minimalRows.map((r) => ({
+            ...r,
+            phone: '',
+            status: 'active',
+            email_verified: true,
+          })) as RowDataPacket[];
+        }
+      }
+    }
 
     if (rows.length === 0) return null;
-    return rows[0] as User;
+    const user = rows[0] as User;
+    return {
+      ...user,
+      status: (user.status as User['status']) || 'active',
+      email_verified: typeof user.email_verified === 'boolean' ? user.email_verified : true,
+    };
   } catch (error) {
     console.error('Error fetching user:', error);
     return null;
@@ -39,66 +84,131 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function getUserById(id: number): Promise<User | null> {
   try {
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT id, email, full_name, role, phone, status, email_verified, created_at, last_login FROM users WHERE id = ?',
-      [id]
-    );
+    let rows: RowDataPacket[] = [];
+    try {
+      const [richRows] = await pool.execute<RowDataPacket[]>(
+        'SELECT id, email, full_name, role, phone, status, email_verified, created_at, last_login FROM users WHERE id = ?',
+        [id]
+      );
+      rows = richRows;
+    } catch {
+      try {
+        // Older schema fallback without status/email_verified columns
+        const [basicRows] = await pool.execute<RowDataPacket[]>(
+          'SELECT id, email, full_name, role, phone, created_at, last_login FROM users WHERE id = ?',
+          [id]
+        );
+        rows = basicRows.map((r) => ({
+          ...r,
+          status: 'active',
+          email_verified: true,
+        })) as RowDataPacket[];
+      } catch {
+        try {
+          const [phoneNumberRows] = await pool.execute<RowDataPacket[]>(
+            'SELECT id, email, full_name, role, phone_number as phone, created_at, last_login FROM users WHERE id = ?',
+            [id]
+          );
+          rows = phoneNumberRows.map((r) => ({
+            ...r,
+            status: 'active',
+            email_verified: true,
+          })) as RowDataPacket[];
+        } catch {
+          const [minimalRows] = await pool.execute<RowDataPacket[]>(
+            'SELECT id, email, full_name, role, created_at, last_login FROM users WHERE id = ?',
+            [id]
+          );
+          rows = minimalRows.map((r) => ({
+            ...r,
+            phone: '',
+            status: 'active',
+            email_verified: true,
+          })) as RowDataPacket[];
+        }
+      }
+    }
 
     if (rows.length === 0) return null;
-    return rows[0] as User;
+    const user = rows[0] as User;
+    return {
+      ...user,
+      status: (user.status as User['status']) || 'active',
+      email_verified: typeof user.email_verified === 'boolean' ? user.email_verified : true,
+    };
   } catch (error) {
     console.error('Error fetching user:', error);
     return null;
   }
 }
 
-export async function authenticateUser(email: string, password: string): Promise<User | null> {
+export type AuthFailureReason =
+  | 'invalid_credentials'
+  | 'suspended'
+  | 'inactive';
+
+export type AuthenticateResult =
+  | { ok: true; user: User }
+  | { ok: false; reason: AuthFailureReason };
+
+/**
+ * Single DB round-trip for the user row, then password verify.
+ * Used by /api/auth/login only — avoids duplicate SELECTs and preserves status-specific errors.
+ */
+export async function authenticateUser(email: string, password: string): Promise<AuthenticateResult> {
   try {
-    console.log('[Auth] Attempting to authenticate:', email);
+    const normalizedEmail = email.trim().replace(/\s+/g, '').toLowerCase();
     const [rows] = await pool.execute<RowDataPacket[]>(
       'SELECT * FROM users WHERE email = ?',
-      [email]
+      [normalizedEmail]
     );
 
-    console.log('[Auth] Users found:', rows.length);
     if (rows.length === 0) {
-      console.log('[Auth] No user found with email:', email);
-      return null;
+      return { ok: false, reason: 'invalid_credentials' };
     }
 
     const user = rows[0];
-    console.log('[Auth] User found - ID:', user.id, 'Role:', user.role);
-    
-    // Check status if column exists
-    if (user.status && user.status !== 'active') {
-      console.log('[Auth] User status is not active:', user.status);
-      return null;
+
+    if (user.status === 'suspended') {
+      return { ok: false, reason: 'suspended' };
     }
-    
-    console.log('[Auth] Password hash exists:', !!user.password_hash);
-    console.log('[Auth] Password hash length:', user.password_hash?.length);
-    console.log('[Auth] Password hash prefix:', user.password_hash?.substring(0, 10));
-    
-    const isValid = await verifyPassword(password, user.password_hash);
-    console.log('[Auth] Password valid:', isValid);
+    if (user.status === 'inactive') {
+      return { ok: false, reason: 'inactive' };
+    }
+    if (user.status && user.status !== 'active') {
+      return { ok: false, reason: 'invalid_credentials' };
+    }
+
+    const storedPassword = typeof user.password_hash === 'string' ? user.password_hash : '';
+    const legacyPassword = typeof (user as { password?: unknown }).password === 'string'
+      ? ((user as { password?: string }).password || '')
+      : '';
+    const passwordCandidates = [storedPassword, legacyPassword].filter((p) => !!p);
+
+    let isValid = false;
+    for (const candidate of passwordCandidates) {
+      if (candidate.startsWith('$2a$') || candidate.startsWith('$2b$') || candidate.startsWith('$2y$')) {
+        if (await verifyPassword(password, candidate)) {
+          isValid = true;
+          break;
+        }
+      }
+    }
 
     if (!isValid) {
-      console.log('[Auth] Password verification failed');
-      return null;
+      return { ok: false, reason: 'invalid_credentials' };
     }
 
-    // Update last login
-    await pool.execute(
-      'UPDATE users SET last_login = NOW() WHERE id = ?',
-      [user.id]
-    );
+    void pool
+      .execute('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id])
+      .catch((err) => console.error('[auth] last_login update failed:', err));
 
-    // Return user without password hash
-    const { password_hash, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
-  } catch (error) {
+    const userWithoutPassword = { ...user } as Record<string, unknown>;
+    delete userWithoutPassword.password_hash;
+    return { ok: true, user: userWithoutPassword as User };
+  } catch (error: unknown) {
     console.error('Error authenticating user:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -106,26 +216,87 @@ export async function createUser(
   email: string,
   password: string,
   full_name: string,
-  role: 'admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher' = 'client',
+  role: 'admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher' | 'census' = 'client',
   phone?: string
 ): Promise<User | null> {
   try {
     const passwordHash = await hashPassword(password);
 
-    const [result] = await pool.execute(
-      'INSERT INTO users (email, password_hash, full_name, role, phone) VALUES (?, ?, ?, ?, ?)',
-      [email, passwordHash, full_name, role, phone || null]
-    );
+    let result: { insertId?: unknown; rowCount?: unknown } | null = null;
+    try {
+      const [primaryInsert, header] = await pool.execute(
+        `INSERT INTO users
+         (email, password_hash, full_name, role, phone, average_rating, total_ratings, password_change_locked)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [email, passwordHash, full_name, role, phone || null, 0, 0, false]
+      );
+      result = (primaryInsert as { insertId?: unknown }) || (header as { insertId?: unknown; rowCount?: unknown });
+    } catch (phoneColumnError) {
+      const message = String((phoneColumnError as { message?: unknown })?.message || '').toLowerCase();
+      const code = String((phoneColumnError as { code?: unknown })?.code || '');
+      const isPhoneColumnIssue =
+        message.includes("unknown column 'phone'") ||
+        message.includes('column "phone"') ||
+        code === '42703';
 
-    const userId = (result as any).insertId;
-    return await getUserById(userId);
-  } catch (error: any) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      console.error('User already exists');
-    } else {
-      console.error('Error creating user:', error);
+      if (!isPhoneColumnIssue) {
+        throw phoneColumnError;
+      }
+
+      try {
+        const [phoneNumberInsert, header] = await pool.execute(
+          `INSERT INTO users
+           (email, password_hash, full_name, role, phone_number, average_rating, total_ratings, password_change_locked)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [email, passwordHash, full_name, role, phone || null, 0, 0, false]
+        );
+        result = (phoneNumberInsert as { insertId?: unknown }) || (header as { insertId?: unknown; rowCount?: unknown });
+      } catch (phoneNumberColumnError) {
+        const secondMessage = String((phoneNumberColumnError as { message?: unknown })?.message || '').toLowerCase();
+        const secondCode = String((phoneNumberColumnError as { code?: unknown })?.code || '');
+        const isPhoneNumberColumnIssue =
+          secondMessage.includes("unknown column 'phone_number'") ||
+          secondMessage.includes('column "phone_number"') ||
+          secondCode === '42703';
+
+        if (!isPhoneNumberColumnIssue) {
+          throw phoneNumberColumnError;
+        }
+
+        const [minimalInsert, header] = await pool.execute(
+          `INSERT INTO users
+           (email, password_hash, full_name, role, average_rating, total_ratings, password_change_locked)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [email, passwordHash, full_name, role, 0, 0, false]
+        );
+        result = (minimalInsert as { insertId?: unknown }) || (header as { insertId?: unknown; rowCount?: unknown });
+      }
     }
-    return null;
+
+    const userId = Number((result as { insertId?: unknown } | null)?.insertId || 0);
+    if (Number.isFinite(userId) && userId > 0) {
+      return await getUserById(userId);
+    }
+
+    // PostgreSQL path may not expose insertId; recover by email.
+    return await getUserByEmail(email);
+  } catch (error: unknown) {
+    if ((error as { code?: string })?.code === 'ER_DUP_ENTRY') {
+      console.error('User already exists');
+      return null;
+    }
+    if ((error as { code?: string })?.code === '23505') {
+      // PostgreSQL unique_violation
+      console.error('User already exists');
+      return null;
+    }
+    const message = (error as { message?: string })?.message || '';
+    if (message.toLowerCase().includes('duplicate key value')) {
+      console.error('User already exists');
+      return null;
+    }
+    console.error('Error creating user:', error);
+    throw error;
   }
 }
 

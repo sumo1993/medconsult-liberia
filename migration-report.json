@@ -1,0 +1,222 @@
+[
+  {
+    "table": "activity_logs",
+    "mysqlRows": 108,
+    "pgRows": 108
+  },
+  {
+    "table": "appointments",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "assignment_applications",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "assignment_files",
+    "mysqlRows": 2,
+    "pgRows": 2
+  },
+  {
+    "table": "assignment_message_reads",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "assignment_messages",
+    "mysqlRows": 26,
+    "pgRows": 26
+  },
+  {
+    "table": "assignment_requests",
+    "mysqlRows": 6,
+    "pgRows": 6
+  },
+  {
+    "table": "assignment_submissions",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "consultant_earnings",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "consultant_payment_status",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "contact_messages",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "direct_messages",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "doctor_about_me",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "donation_inquiries",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "expense_audit_log",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "expenses",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "file_comments",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "hero_images",
+    "mysqlRows": 3,
+    "pgRows": 3
+  },
+  {
+    "table": "message_replies",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "messages",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "partnerships",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "password_change_requests",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "payment_records",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "payment_settings",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "ratings",
+    "mysqlRows": 2,
+    "pgRows": 2
+  },
+  {
+    "table": "research_data_entries",
+    "mysqlRows": 2,
+    "pgRows": 2
+  },
+  {
+    "table": "research_posts",
+    "mysqlRows": 2,
+    "pgRows": 2
+  },
+  {
+    "table": "research_project_assignments",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "research_projects",
+    "mysqlRows": 5,
+    "pgRows": 5
+  },
+  {
+    "table": "research_reports",
+    "mysqlRows": 5,
+    "pgRows": 5
+  },
+  {
+    "table": "research_resources",
+    "mysqlRows": 8,
+    "pgRows": 8
+  },
+  {
+    "table": "research_submissions",
+    "mysqlRows": 4,
+    "pgRows": 4
+  },
+  {
+    "table": "researcher_notifications",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "site_settings",
+    "mysqlRows": 4,
+    "pgRows": 4
+  },
+  {
+    "table": "statistics",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "study_materials",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "team_applications",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "team_members",
+    "mysqlRows": 4,
+    "pgRows": 4
+  },
+  {
+    "table": "team_payment_status",
+    "mysqlRows": 0,
+    "pgRows": 0
+  },
+  {
+    "table": "team_photos",
+    "mysqlRows": 6,
+    "pgRows": 6
+  },
+  {
+    "table": "testimonials",
+    "mysqlRows": 2,
+    "pgRows": 2
+  },
+  {
+    "table": "transactions",
+    "mysqlRows": 1,
+    "pgRows": 1
+  },
+  {
+    "table": "user_profiles",
+    "mysqlRows": 2,
+    "pgRows": 2
+  },
+  {
+    "table": "users",
+    "mysqlRows": 8,
+    "pgRows": 8
+  }
+]

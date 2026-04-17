@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { verifyAuth } from '@/lib/middleware';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('Running consultant_earnings migration...');
+    const user = await verifyAuth(request);
+    if (!user || !['admin', 'accountant'].includes(user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     
     // Check if columns exist
     const [columns]: any = await pool.execute(`

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Save, X, ArrowLeft, User, Mail, Phone, Linkedin, Facebook, Eye, EyeOff, Upload, Image as ImageIcon } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
+import Toast from '@/components/Toast';
 
 export default function AdminTeamPage() {
   const router = useRouter();
@@ -27,6 +29,9 @@ export default function AdminTeamPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchMembers();
@@ -71,12 +76,12 @@ export default function AdminTeamPage() {
         return data.photoUrl;
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to upload photo');
+        setToast({ message: error.error || 'Failed to upload photo', type: 'error' });
         return null;
       }
     } catch (error) {
       console.error('Error uploading photo:', error);
-      alert('Failed to upload photo');
+      setToast({ message: 'Failed to upload photo', type: 'error' });
       return null;
     } finally {
       setUploading(false);
@@ -123,11 +128,11 @@ export default function AdminTeamPage() {
         setShowSuccessModal(true);
       } else {
         const errorData = await response.json();
-        alert(`Failed to save: ${errorData.error || 'Unknown error'}`);
+        setToast({ message: `Failed to save: ${errorData.error || 'Unknown error'}`, type: 'error' });
       }
     } catch (error) {
       console.error('Error saving team member:', error);
-      alert('An error occurred while saving');
+      setToast({ message: 'An error occurred while saving', type: 'error' });
     }
   };
 
@@ -138,8 +143,20 @@ export default function AdminTeamPage() {
       editData.facebook = editData.twitter;
     }
     delete editData.twitter;
-    
-    setFormData(editData);
+
+    setFormData({
+      name: editData.name || '',
+      role: editData.role || '',
+      specialization: editData.specialization || '',
+      bio: editData.bio || '',
+      photo: editData.photo || '',
+      email: editData.email || '',
+      phone: editData.phone || '',
+      linkedin: editData.linkedin || '',
+      facebook: editData.facebook || '',
+      display_order: Number.isFinite(editData.display_order) ? editData.display_order : 0,
+      status: editData.status || 'active',
+    });
     setEditingId(member.id);
     setShowForm(true);
   };
@@ -166,8 +183,28 @@ export default function AdminTeamPage() {
     }
   };
 
+  const sortedMembers = [...members].sort((a: any, b: any) => {
+    const aDate = a?.created_at ? new Date(a.created_at).getTime() : 0;
+    const bDate = b?.created_at ? new Date(b.created_at).getTime() : 0;
+    if (bDate !== aDate) return bDate - aDate;
+    return (b?.id || 0) - (a?.id || 0);
+  });
+  const totalPages = Math.max(1, Math.ceil(sortedMembers.length / itemsPerPage));
+  const paginatedMembers = sortedMembers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [members]);
+
   return (
     <>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-900/30 backdrop-blur-sm">
@@ -473,9 +510,9 @@ export default function AdminTeamPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
             </div>
-          ) : members.length > 0 ? (
+          ) : sortedMembers.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {members.map((member) => (
+              {paginatedMembers.map((member) => (
                 <div key={member.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   {member.photo && (
                     <img 
@@ -559,6 +596,13 @@ export default function AdminTeamPage() {
               <User size={48} className="mx-auto mb-4 text-gray-400" />
               <p>No team members added yet. Click "Add Team Member" to get started.</p>
             </div>
+          )}
+          {sortedMembers.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           )}
         </div>
       </div>

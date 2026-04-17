@@ -3,6 +3,12 @@ import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
+const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+const usePostgres =
+  dbClient === 'postgres' ||
+  dbClient === 'postgresql' ||
+  !!process.env.DATABASE_URL;
+
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
@@ -34,10 +40,14 @@ export async function GET(request: NextRequest) {
 
     // Get completed this month
     const [completedThisMonthResult] = await pool.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) as count FROM assignment_requests 
-       WHERE doctor_id = ? AND status = 'completed' 
-       AND MONTH(completed_at) = MONTH(CURRENT_DATE()) 
-       AND YEAR(completed_at) = YEAR(CURRENT_DATE())`,
+      usePostgres
+        ? `SELECT COUNT(*) as count FROM assignment_requests
+           WHERE doctor_id = ? AND status = 'completed'
+           AND DATE_TRUNC('month', completed_at) = DATE_TRUNC('month', CURRENT_DATE)`
+        : `SELECT COUNT(*) as count FROM assignment_requests
+           WHERE doctor_id = ? AND status = 'completed'
+           AND MONTH(completed_at) = MONTH(CURRENT_DATE())
+           AND YEAR(completed_at) = YEAR(CURRENT_DATE())`,
       [consultantId]
     );
 
@@ -59,9 +69,13 @@ export async function GET(request: NextRequest) {
 
     // Calculate average response time (in hours)
     const [responseTimeResult] = await pool.execute<RowDataPacket[]>(
-      `SELECT AVG(TIMESTAMPDIFF(HOUR, created_at, reviewed_at)) as avg_hours 
-       FROM assignment_requests 
-       WHERE doctor_id = ? AND reviewed_at IS NOT NULL`,
+      usePostgres
+        ? `SELECT AVG(EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 3600) as avg_hours
+           FROM assignment_requests
+           WHERE doctor_id = ? AND reviewed_at IS NOT NULL`
+        : `SELECT AVG(TIMESTAMPDIFF(HOUR, created_at, reviewed_at)) as avg_hours
+           FROM assignment_requests
+           WHERE doctor_id = ? AND reviewed_at IS NOT NULL`,
       [consultantId]
     );
 
@@ -88,9 +102,9 @@ export async function GET(request: NextRequest) {
       pendingAssignments: pendingResult[0].count,
       inProgressAssignments: inProgressResult[0].count,
       completedThisMonth: completedThisMonthResult[0].count,
-      totalEarnings: parseFloat(earningsResult[0].total),
-      pendingPayments: parseFloat(pendingPaymentsResult[0].total),
-      averageResponseTime: Math.round(responseTimeResult[0].avg_hours || 0),
+      totalEarnings: Number(earningsResult[0]?.total || 0),
+      pendingPayments: Number(pendingPaymentsResult[0]?.total || 0),
+      averageResponseTime: Math.round(Number(responseTimeResult[0]?.avg_hours || 0)),
       completionRate,
       activeClients: activeClientsResult[0].count,
     });

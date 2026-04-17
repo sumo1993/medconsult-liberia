@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  FileText, MessageSquare, Bell, Search, Database, MapPin, 
-  ClipboardList, BarChart3, Users, Calendar, Upload, Download,
-  CheckCircle, Clock, AlertCircle, TrendingUp, Folder, Globe,
-  Activity, Target, ChevronRight, Eye, Send, FileSpreadsheet,
-  PieChart, Zap
+  FileText, MessageSquare, Bell, Database, MapPin,
+  ClipboardList, Users, Upload, Download,
+  CheckCircle, Clock, TrendingUp, Folder, Globe,
+  Activity, ChevronRight, Eye, Send, FileSpreadsheet,
+  PieChart
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationBadge from '@/components/NotificationBadge';
@@ -39,7 +39,7 @@ interface DataSubmission {
 export default function ResearcherDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('researcher');
-  const { counts, refresh } = useNotifications('researcher');
+  const { counts } = useNotifications('researcher');
   
   const [stats, setStats] = useState({
     activeProjects: 0,
@@ -58,33 +58,18 @@ export default function ResearcherDashboard() {
 
   const [activeProjects, setActiveProjects] = useState<ResearchProject[]>([]);
   const [recentSubmissions, setRecentSubmissions] = useState<DataSubmission[]>([]);
-  const [selectedTab, setSelectedTab] = useState('overview');
 
-  const totalNotifications = counts.messages + counts.assignments;
+  const totalNotifications = counts.assignments + counts.researchPosts + counts.donationInquiries;
 
   useSessionValidation();
   useAccountStatus();
 
-  useEffect(() => {
-    fetchAllData();
-    const interval = setInterval(fetchAllData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchAllData = async () => {
-    await Promise.all([
-      fetchProfile(),
-      fetchStats(),
-      fetchActiveProjects(),
-      fetchRecentSubmissions(),
-    ]);
-  };
-
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('auth-token');
+      if (!token) return;
       const response = await fetch('/api/profile', {
-        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -102,8 +87,9 @@ export default function ResearcherDashboard() {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('auth-token');
+      if (!token) return;
       const response = await fetch('/api/researcher/stats', {
-        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -117,8 +103,9 @@ export default function ResearcherDashboard() {
   const fetchActiveProjects = async () => {
     try {
       const token = localStorage.getItem('auth-token');
+      if (!token) return;
       const response = await fetch('/api/researcher/projects', {
-        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -132,8 +119,9 @@ export default function ResearcherDashboard() {
   const fetchRecentSubmissions = async () => {
     try {
       const token = localStorage.getItem('auth-token');
+      if (!token) return;
       const response = await fetch('/api/researcher/submissions', {
-        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -143,6 +131,22 @@ export default function ResearcherDashboard() {
       console.error('Error fetching submissions:', error);
     }
   };
+
+  const fetchAllData = useEffectEvent(async () => {
+    await Promise.all([
+      fetchProfile(),
+      fetchStats(),
+      fetchActiveProjects(),
+      fetchRecentSubmissions(),
+    ]);
+  });
+
+  useEffect(() => {
+    if (!isAuthorized) return;
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthorized]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -215,6 +219,13 @@ export default function ResearcherDashboard() {
       color: 'bg-orange-500',
     },
     {
+      title: 'Field Reports',
+      description: 'Census worker submissions',
+      icon: Globe,
+      href: '/dashboard/researcher/census-reports',
+      color: 'bg-lime-600',
+    },
+    {
       title: 'Messages',
       description: 'Team communication',
       icon: MessageSquare,
@@ -265,7 +276,14 @@ export default function ResearcherDashboard() {
               </p>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <button className="relative p-2 hover:bg-gray-100 rounded-lg">
+              <button
+                onClick={() => {
+                  router.push('/dashboard/researcher/notifications');
+                }}
+                className="relative p-2 hover:bg-gray-100 rounded-lg"
+                title="View notifications"
+                aria-label="View notifications"
+              >
                 <Bell className="text-gray-600" size={20} />
                 {totalNotifications > 0 && (
                   <NotificationBadge 
@@ -297,7 +315,7 @@ export default function ResearcherDashboard() {
             Welcome back, {profile?.full_name || 'Researcher'}! 👋
           </h2>
           <p className="text-emerald-100">
-            You're contributing to important research in Liberia. Keep up the great work!
+            You&apos;re contributing to important research in Liberia. Keep up the great work!
           </p>
           {profile?.specialization && (
             <p className="text-sm mt-2 text-emerald-200">
@@ -395,7 +413,12 @@ export default function ResearcherDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {activeProjects.slice(0, 3).map((project) => (
+                {activeProjects.slice(0, 3).map((project) => {
+                  const progressPercent =
+                    project.target_samples > 0
+                      ? Math.min(100, Math.max(0, (project.data_collected / project.target_samples) * 100))
+                      : 0;
+                  return (
                   <div 
                     key={project.id}
                     className="border border-gray-200 rounded-lg p-4 hover:border-emerald-300 transition-colors cursor-pointer"
@@ -424,12 +447,13 @@ export default function ResearcherDashboard() {
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-emerald-500 h-2 rounded-full transition-all"
-                          style={{ width: `${(project.data_collected / project.target_samples) * 100}%` }}
+                          style={{ width: `${progressPercent}%` }}
                         ></div>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -486,48 +510,6 @@ export default function ResearcherDashboard() {
       {/* Online Status Indicator */}
       <OnlineStatusIndicator />
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 md:hidden z-50">
-        <div className="flex justify-around items-center">
-          <button 
-            onClick={() => router.push('/dashboard/researcher')}
-            className="flex flex-col items-center p-2 text-emerald-600"
-          >
-            <BarChart3 size={20} />
-            <span className="text-xs mt-1">Home</span>
-          </button>
-          <button 
-            onClick={() => router.push('/dashboard/researcher/projects')}
-            className="flex flex-col items-center p-2 text-gray-500 hover:text-emerald-600"
-          >
-            <Folder size={20} />
-            <span className="text-xs mt-1">Projects</span>
-          </button>
-          <button 
-            onClick={() => router.push('/dashboard/researcher/submit-data')}
-            className="flex flex-col items-center p-2 text-gray-500 hover:text-emerald-600"
-          >
-            <Upload size={20} />
-            <span className="text-xs mt-1">Submit</span>
-          </button>
-          <button 
-            onClick={() => router.push('/dashboard/researcher/messages')}
-            className="flex flex-col items-center p-2 text-gray-500 hover:text-emerald-600"
-          >
-            <MessageSquare size={20} />
-            <span className="text-xs mt-1">Messages</span>
-          </button>
-          <button 
-            onClick={() => router.push('/dashboard/researcher/profile')}
-            className="flex flex-col items-center p-2 text-gray-500 hover:text-emerald-600"
-          >
-            <ProfileAvatar className="w-5 h-5" />
-            <span className="text-xs mt-1">Profile</span>
-          </button>
-        </div>
-      </nav>
     </div>
   );
 }
-
-

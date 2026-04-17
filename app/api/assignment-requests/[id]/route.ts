@@ -3,6 +3,23 @@ import pool from '@/lib/db';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
+const NON_EDITABLE_AFTER_PAYMENT_OR_START = new Set([
+  'payment_uploaded',
+  'payment_verified',
+  'in_progress',
+  'completed',
+]);
+
+function canClientEditOrDelete(assignmentRequest: RowDataPacket): boolean {
+  const status = String(assignmentRequest.status || '');
+  const hasPaymentEvidence =
+    !!assignmentRequest.payment_method ||
+    !!assignmentRequest.payment_receipt_filename ||
+    !!assignmentRequest.payment_receipt_data;
+
+  return !NON_EDITABLE_AFTER_PAYMENT_OR_START.has(status) && !hasPaymentEvidence;
+}
+
 // GET - Fetch single assignment request
 export async function GET(
   request: NextRequest,
@@ -257,6 +274,47 @@ export async function PUT(
 
         return NextResponse.json({ success: true, message: 'Payment verified and work started' });
 
+      case 'client_update_request':
+        // Client edits own request before payment/start
+        if (user.role !== 'client' || assignmentRequest.client_id !== user.userId) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+
+        if (!canClientEditOrDelete(assignmentRequest)) {
+          return NextResponse.json(
+            { error: 'You can only edit before payment upload and before work starts.' },
+            { status: 400 }
+          );
+        }
+
+        if (!data.title || !data.description) {
+          return NextResponse.json(
+            { error: 'Title and description are required.' },
+            { status: 400 }
+          );
+        }
+
+        await pool.execute(
+          `UPDATE assignment_requests
+           SET title = ?, subject = ?, description = ?, deadline = ?, updated_at = NOW()
+           WHERE id = ?`,
+          [
+            String(data.title).trim(),
+            data.subject ? String(data.subject).trim() : null,
+            String(data.description).trim(),
+            data.deadline || null,
+            requestId,
+          ]
+        );
+
+        await pool.execute(
+          `INSERT INTO assignment_messages (assignment_request_id, sender_id, message, message_type)
+           VALUES (?, ?, ?, 'general')`,
+          [requestId, user.userId, 'Client updated assignment details before payment/start.']
+        );
+
+        return NextResponse.json({ success: true, message: 'Assignment updated successfully.' });
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
@@ -264,6 +322,59 @@ export async function PUT(
     console.error('Error updating assignment request:', error);
     return NextResponse.json(
       { error: 'Failed to update assignment request' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete assignment request (client only, before payment/start)
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await verifyAuth(request);
+    if (!user || user.role !== 'client') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const requestId = params.id;
+
+    const [requests] = await pool.execute<RowDataPacket[]>(
+      'SELECT * FROM assignment_requests WHERE id = ?',
+      [requestId]
+    );
+
+    if (requests.length === 0) {
+      return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+    }
+
+    const assignmentRequest = requests[0];
+    if (assignmentRequest.client_id !== user.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    if (!canClientEditOrDelete(assignmentRequest)) {
+      return NextResponse.json(
+        { error: 'You can only delete before payment upload and before work starts.' },
+        { status: 400 }
+      );
+    }
+
+    // Remove dependent rows first to avoid FK issues in stricter DB setups.
+    await pool.execute('DELETE FROM assignment_message_reads WHERE assignment_request_id = ?', [requestId]).catch(() => {});
+    await pool.execute('DELETE FROM assignment_messages WHERE assignment_request_id = ?', [requestId]).catch(() => {});
+    await pool.execute('DELETE FROM assignment_applications WHERE assignment_id = ?', [requestId]).catch(() => {});
+    await pool.execute('DELETE FROM ratings WHERE assignment_request_id = ?', [requestId]).catch(() => {});
+
+    await pool.execute<ResultSetHeader>('DELETE FROM assignment_requests WHERE id = ?', [requestId]);
+
+    return NextResponse.json({ success: true, message: 'Assignment request deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting assignment request:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete assignment request' },
       { status: 500 }
     );
   }

@@ -22,7 +22,7 @@ export default function DonationInquiriesPage() {
   const [selectedInquiry, setSelectedInquiry] = useState<DonationInquiry | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'contacted' | 'completed'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   useEffect(() => {
     loadInquiries();
@@ -74,12 +74,15 @@ export default function DonationInquiriesPage() {
   const filteredInquiries = filter === 'all' 
     ? inquiries 
     : inquiries.filter(i => i.status === filter);
+  const sortedInquiries = [...filteredInquiries].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // Pagination
-  const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedInquiries.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedInquiries = filteredInquiries.slice(startIndex, endIndex);
+  const paginatedInquiries = sortedInquiries.slice(startIndex, endIndex);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -145,7 +148,7 @@ export default function DonationInquiriesPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700 mx-auto mb-4"></div>
             <p className="text-gray-500">Loading inquiries...</p>
           </div>
-        ) : filteredInquiries.length === 0 ? (
+        ) : sortedInquiries.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <Mail size={64} className="mx-auto mb-4 text-gray-300" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">No Inquiries Yet</h2>
@@ -328,7 +331,7 @@ export default function DonationInquiriesPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between bg-white rounded-lg shadow p-4">
               <div className="text-sm text-gray-600">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredInquiries.length)} of {filteredInquiries.length} inquiries
+                Showing {startIndex + 1} to {Math.min(endIndex, sortedInquiries.length)} of {sortedInquiries.length} inquiries
               </div>
               <div className="flex space-x-2">
                 <button

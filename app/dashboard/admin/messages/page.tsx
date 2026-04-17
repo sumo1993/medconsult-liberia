@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Clock, Reply, Send, MessageCircle, CheckCircle, XCircle, Archive, Trash2 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Message {
   id: number;
@@ -26,6 +27,24 @@ interface ReplyItem {
   replier_role: string;
 }
 
+const normalizeMessages = (input: unknown): Message[] => {
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is Message => {
+    if (!item || typeof item !== 'object') return false;
+    const candidate = item as Partial<Message>;
+    return typeof candidate.id !== 'undefined' && typeof candidate.message === 'string';
+  });
+};
+
+const normalizeReplies = (input: unknown): ReplyItem[] => {
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is ReplyItem => {
+    if (!item || typeof item !== 'object') return false;
+    const candidate = item as Partial<ReplyItem>;
+    return typeof candidate.id !== 'undefined' && typeof candidate.reply_text === 'string';
+  });
+};
+
 export default function MessagesPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,17 +56,37 @@ export default function MessagesPage() {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'archived'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchMessages();
   }, []);
 
+  useEffect(() => {
+    const inboxTimer = setInterval(() => {
+      fetchMessages();
+    }, 15000);
+    return () => clearInterval(inboxTimer);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedMessage?.id) return;
+    const threadTimer = setInterval(() => {
+      fetchReplies(selectedMessage.id);
+    }, 5000);
+    return () => clearInterval(threadTimer);
+  }, [selectedMessage?.id]);
+
   const fetchMessages = async () => {
     try {
-      const response = await fetch('/api/contact');
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch('/api/contact', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.messages);
+        setMessages(normalizeMessages(data.messages));
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -64,7 +103,7 @@ export default function MessagesPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setReplies(data.replies || []);
+        setReplies(normalizeReplies(data.replies));
       }
     } catch (error) {
       console.error('Error fetching replies:', error);
@@ -94,8 +133,8 @@ export default function MessagesPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setReplies([...replies, data.reply]);
+        await response.json();
+        await fetchReplies(selectedMessage.id);
         setReplyText('');
         setShowReplyForm(false);
         showNotificationMessage('success', 'Reply sent successfully!');
@@ -181,6 +220,8 @@ export default function MessagesPage() {
         return 'bg-purple-100 text-purple-800';
       case 'donation':
         return 'bg-green-100 text-green-800';
+      case 'research_report':
+        return 'bg-emerald-100 text-emerald-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -189,6 +230,15 @@ export default function MessagesPage() {
   const filteredMessages = messages.filter(m => 
     filter === 'all' ? !m.is_archived : m.is_archived
   );
+  const sortedMessages = [...filteredMessages].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedMessages.length / itemsPerPage));
+  const paginatedMessages = sortedMessages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, messages]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -224,18 +274,18 @@ export default function MessagesPage() {
           {/* Messages List */}
           <div className="lg:col-span-1 bg-white rounded-lg shadow">
             <div className="p-4 border-b bg-emerald-50">
-              <h2 className="font-semibold text-emerald-900">Inbox ({filteredMessages.length})</h2>
+              <h2 className="font-semibold text-emerald-900">Inbox ({sortedMessages.length})</h2>
             </div>
             <div className="divide-y max-h-[600px] overflow-y-auto">
               {loading ? (
                 <div className="p-4 text-center text-gray-500">Loading...</div>
-              ) : filteredMessages.length === 0 ? (
+              ) : sortedMessages.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">
                   <Mail size={48} className="mx-auto mb-2 text-gray-300" />
                   <p>No messages yet</p>
                 </div>
               ) : (
-                filteredMessages.map((message) => (
+                paginatedMessages.map((message) => (
                   <div
                     key={message.id}
                     onClick={() => handleSelectMessage(message)}
@@ -260,6 +310,13 @@ export default function MessagesPage() {
                   </div>
                 ))
               )}
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
           </div>
 

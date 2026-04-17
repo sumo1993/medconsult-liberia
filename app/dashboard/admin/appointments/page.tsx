@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, Phone, Mail } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Appointment {
   id: number;
@@ -20,6 +21,8 @@ export default function AppointmentsPage() {
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchAppointments();
@@ -53,6 +56,15 @@ export default function AppointmentsPage() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const sortedAppointments = [...appointments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedAppointments.length / itemsPerPage));
+  const paginatedAppointments = sortedAppointments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,14 +120,14 @@ export default function AppointmentsPage() {
                       Loading appointments...
                     </td>
                   </tr>
-                ) : appointments.length === 0 ? (
+                ) : sortedAppointments.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
                       No appointments yet
                     </td>
                   </tr>
                 ) : (
-                  appointments.map((appointment) => (
+                  paginatedAppointments.map((appointment) => (
                     <tr key={appointment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{appointment.name}</div>
@@ -169,6 +181,15 @@ export default function AppointmentsPage() {
               </tbody>
             </table>
           </div>
+          {!loading && sortedAppointments.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={sortedAppointments.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
         </div>
       </main>
     </div>

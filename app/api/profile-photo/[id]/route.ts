@@ -2,13 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 
+// Intentionally public: profile photos are displayed on public team pages,
+// doctor profiles, and within authenticated dashboards via <img src>.
+// Adding auth would break avatar rendering in shared contexts.
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const params = await context.params;
-    const userId = params.id;
+    const userId = parseInt(String(params.id), 10);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return new NextResponse('Invalid user id', { status: 400 });
+    }
 
     // Fetch profile photo from database
     const [rows] = await pool.execute<RowDataPacket[]>(

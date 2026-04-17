@@ -3,6 +3,12 @@ import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
+const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+const usePostgres =
+  dbClient === 'postgres' ||
+  dbClient === 'postgresql' ||
+  !!process.env.DATABASE_URL;
+
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
@@ -14,21 +20,31 @@ export async function GET(request: NextRequest) {
 
     // This month earnings
     const [thisMonthResult] = await pool.execute<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(COALESCE(final_price, negotiated_price, proposed_price)), 0) as total 
-       FROM assignment_requests 
-       WHERE doctor_id = ? AND status = 'completed'
-       AND MONTH(completed_at) = MONTH(CURRENT_DATE()) 
-       AND YEAR(completed_at) = YEAR(CURRENT_DATE())`,
+      usePostgres
+        ? `SELECT COALESCE(SUM(COALESCE(final_price, negotiated_price, proposed_price)), 0) as total
+           FROM assignment_requests
+           WHERE doctor_id = ? AND status = 'completed'
+           AND DATE_TRUNC('month', completed_at) = DATE_TRUNC('month', CURRENT_DATE)`
+        : `SELECT COALESCE(SUM(COALESCE(final_price, negotiated_price, proposed_price)), 0) as total
+           FROM assignment_requests
+           WHERE doctor_id = ? AND status = 'completed'
+           AND MONTH(completed_at) = MONTH(CURRENT_DATE())
+           AND YEAR(completed_at) = YEAR(CURRENT_DATE())`,
       [consultantId]
     );
 
     // Last month earnings
     const [lastMonthResult] = await pool.execute<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(COALESCE(final_price, negotiated_price, proposed_price)), 0) as total 
-       FROM assignment_requests 
-       WHERE doctor_id = ? AND status = 'completed'
-       AND MONTH(completed_at) = MONTH(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
-       AND YEAR(completed_at) = YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))`,
+      usePostgres
+        ? `SELECT COALESCE(SUM(COALESCE(final_price, negotiated_price, proposed_price)), 0) as total
+           FROM assignment_requests
+           WHERE doctor_id = ? AND status = 'completed'
+           AND DATE_TRUNC('month', completed_at) = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')`
+        : `SELECT COALESCE(SUM(COALESCE(final_price, negotiated_price, proposed_price)), 0) as total
+           FROM assignment_requests
+           WHERE doctor_id = ? AND status = 'completed'
+           AND MONTH(completed_at) = MONTH(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
+           AND YEAR(completed_at) = YEAR(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))`,
       [consultantId]
     );
 
@@ -49,10 +65,10 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({
-      thisMonth: parseFloat(thisMonthResult[0].total),
-      lastMonth: parseFloat(lastMonthResult[0].total),
-      total: parseFloat(totalResult[0].total),
-      pending: parseFloat(pendingResult[0].total),
+      thisMonth: Number(thisMonthResult[0]?.total || 0),
+      lastMonth: Number(lastMonthResult[0]?.total || 0),
+      total: Number(totalResult[0]?.total || 0),
+      pending: Number(pendingResult[0]?.total || 0),
     });
   } catch (error) {
     console.error('Error fetching earnings:', error);

@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Toast from '@/components/Toast';
 
 export default function RatingsDebugPage() {
   const router = useRouter();
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     runDiagnostics();
@@ -114,6 +116,13 @@ export default function RatingsDebugPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -226,7 +235,7 @@ export default function RatingsDebugPage() {
                 <button
                   onClick={() => {
                     console.log('Debug Info:', debugInfo);
-                    alert('Debug info logged to console. Press F12 to view.');
+                    setToast({ message: 'Debug info logged to console. Press F12 to view.', type: 'info' });
                   }}
                   className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold"
                 >

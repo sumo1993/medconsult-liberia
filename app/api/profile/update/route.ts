@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { ResultSetHeader } from 'mysql2';
+import { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
 export async function PUT(request: NextRequest) {
@@ -22,57 +22,68 @@ export async function PUT(request: NextRequest) {
       phone_number: data.phone_number,
     });
 
-    // Update user profile
+    const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+    const usePostgres =
+      dbClient === 'postgres' ||
+      dbClient === 'postgresql' ||
+      !!process.env.DATABASE_URL;
+
+    const [columns] = await pool.execute<RowDataPacket[]>(
+      usePostgres
+        ? `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'users'`
+        : `SELECT COLUMN_NAME
+           FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'`
+    );
+    const existingColumns = new Set(
+      columns.map((row) =>
+        String((row as RowDataPacket).column_name || (row as RowDataPacket).COLUMN_NAME || '').toLowerCase()
+      )
+    );
+
+    const fieldValues: Record<string, unknown> = {
+      full_name: data.full_name,
+      email: data.email,
+      title: data.title || null,
+      date_of_birth: data.date_of_birth || null,
+      gender: data.gender || null,
+      city: data.city || null,
+      county: data.county || null,
+      country: data.country || null,
+      educational_level: data.educational_level || null,
+      marital_status: data.marital_status || null,
+      employment_status: data.employment_status || null,
+      occupation: data.occupation || null,
+      phone_number: data.phone_number || null,
+      emergency_contact_name: data.emergency_contact_name || null,
+      emergency_contact_phone: data.emergency_contact_phone || null,
+      emergency_contact_relationship: data.emergency_contact_relationship || null,
+      specialization: data.specialization || null,
+      years_of_experience: data.years_of_experience || null,
+      license_number: data.license_number || null,
+      research_interests: data.research_interests || null,
+      current_projects: data.current_projects || null,
+      bio: data.bio || null,
+    };
+
+    const updateEntries = Object.entries(fieldValues).filter(([column]) =>
+      existingColumns.has(column.toLowerCase())
+    );
+    if (updateEntries.length === 0) {
+      return NextResponse.json(
+        { error: 'No updatable profile columns found in users table' },
+        { status: 500 }
+      );
+    }
+
+    const setClause = updateEntries.map(([column]) => `${column} = ?`).join(', ');
+    const values = updateEntries.map(([, value]) => value);
+
     const [result] = await pool.execute<ResultSetHeader>(
-      `UPDATE users SET 
-        full_name = ?,
-        email = ?,
-        title = ?,
-        date_of_birth = ?,
-        gender = ?,
-        city = ?,
-        county = ?,
-        country = ?,
-        educational_level = ?,
-        marital_status = ?,
-        employment_status = ?,
-        occupation = ?,
-        phone_number = ?,
-        emergency_contact_name = ?,
-        emergency_contact_phone = ?,
-        emergency_contact_relationship = ?,
-        specialization = ?,
-        years_of_experience = ?,
-        license_number = ?,
-        research_interests = ?,
-        current_projects = ?,
-        bio = ?
-      WHERE id = ?`,
-      [
-        data.full_name,
-        data.email,
-        data.title || null,
-        data.date_of_birth || null,
-        data.gender || null,
-        data.city || null,
-        data.county || null,
-        data.country || null,
-        data.educational_level || null,
-        data.marital_status || null,
-        data.employment_status || null,
-        data.occupation || null,
-        data.phone_number || null,
-        data.emergency_contact_name || null,
-        data.emergency_contact_phone || null,
-        data.emergency_contact_relationship || null,
-        data.specialization || null,
-        data.years_of_experience || null,
-        data.license_number || null,
-        data.research_interests || null,
-        data.current_projects || null,
-        data.bio || null,
-        user.userId,
-      ]
+      `UPDATE users SET ${setClause} WHERE id = ?`,
+      [...values, user.userId]
     );
 
     console.log('[Profile Update] Affected rows:', result.affectedRows);
@@ -89,19 +100,20 @@ export async function PUT(request: NextRequest) {
       success: true,
       message: 'Profile updated successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorObj = error as { message?: string; code?: string; sqlMessage?: string };
     console.error('[Profile Update] ❌ Error updating profile:', error);
     console.error('[Profile Update] Error details:', {
-      message: error.message,
-      code: error.code,
-      sqlMessage: error.sqlMessage
+      message: errorObj?.message,
+      code: errorObj?.code,
+      sqlMessage: errorObj?.sqlMessage
     });
     return NextResponse.json(
       { 
         error: 'Failed to update profile',
-        details: error.message,
-        code: error.code,
-        sqlMessage: error.sqlMessage 
+        details: errorObj?.message,
+        code: errorObj?.code,
+        sqlMessage: errorObj?.sqlMessage 
       },
       { status: 500 }
     );

@@ -3,6 +3,20 @@ import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
+async function safeCount(tableName: string): Promise<number> {
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) as count FROM ${tableName}`
+    );
+    const raw = rows?.[0]?.count ?? 0;
+    const count = Number(raw);
+    return Number.isFinite(count) ? count : 0;
+  } catch (error) {
+    console.error(`[Admin Stats] Failed counting ${tableName}:`, error);
+    return 0;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Verify admin access
@@ -14,37 +28,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get total users
-    const [userCount] = await pool.execute<RowDataPacket[]>(
-      'SELECT COUNT(*) as count FROM users'
-    );
-
-    // Get total messages
-    const [messageCount] = await pool.execute<RowDataPacket[]>(
-      'SELECT COUNT(*) as count FROM contact_messages'
-    );
-
-    // Get total appointments
-    const [appointmentCount] = await pool.execute<RowDataPacket[]>(
-      'SELECT COUNT(*) as count FROM appointments'
-    );
-
-    // Get total research posts
-    const [researchCount] = await pool.execute<RowDataPacket[]>(
-      'SELECT COUNT(*) as count FROM research_posts'
-    );
-
-    // Get total assignment requests
-    const [assignmentCount] = await pool.execute<RowDataPacket[]>(
-      'SELECT COUNT(*) as count FROM assignment_requests'
-    );
+    const [
+      totalUsers,
+      totalMessages,
+      totalAppointments,
+      totalResearch,
+      totalAssignments,
+    ] = await Promise.all([
+      safeCount('users'),
+      safeCount('contact_messages'),
+      safeCount('appointments'),
+      safeCount('research_posts'),
+      safeCount('assignment_requests'),
+    ]);
 
     return NextResponse.json({
-      totalUsers: userCount[0].count,
-      totalMessages: messageCount[0].count,
-      totalAppointments: appointmentCount[0].count,
-      totalResearch: researchCount[0].count,
-      totalAssignments: assignmentCount[0].count,
+      totalUsers,
+      totalMessages,
+      totalAppointments,
+      totalResearch,
+      totalAssignments,
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

@@ -8,7 +8,6 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('[Client Review] Processing review...');
     const user = await verifyAuth(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,21 +27,25 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    console.log('[Client Review] Action:', action, 'for assignment:', requestId);
+    // Verify this assignment belongs to the authenticated client
+    const [rows] = await pool.execute<(import('mysql2').RowDataPacket)[]>(
+      'SELECT id FROM assignment_requests WHERE id = ? AND client_id = ?',
+      [requestId, user.userId]
+    );
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ error: 'Assignment not found or access denied' }, { status: 404 });
+    }
 
     if (action === 'accept') {
-      // Accept - mark as completed
       await pool.execute(
         `UPDATE assignment_requests 
          SET client_review_status = 'accepted',
              client_review_notes = ?,
              client_reviewed_at = NOW(),
              status = 'completed'
-         WHERE id = ?`,
-        [notes || 'Work accepted', requestId]
+         WHERE id = ? AND client_id = ?`,
+        [notes || 'Work accepted', requestId, user.userId]
       );
-
-      console.log('[Client Review] Work accepted - assignment completed');
 
       return NextResponse.json({ 
         success: true, 
@@ -55,11 +58,9 @@ export async function POST(
          SET client_review_status = 'rejected',
              client_review_notes = ?,
              client_reviewed_at = NOW()
-         WHERE id = ?`,
-        [notes || 'Revisions needed', requestId]
+         WHERE id = ? AND client_id = ?`,
+        [notes || 'Revisions needed', requestId, user.userId]
       );
-
-      console.log('[Client Review] Work rejected - needs revision');
 
       return NextResponse.json({ 
         success: true, 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, Settings, MessageCircle, Phone, ArrowLeft } from 'lucide-react';
+import { Save, Settings, MessageCircle, Phone, ArrowLeft, Mail } from 'lucide-react';
 
 interface Setting {
   id: number;
@@ -27,6 +27,9 @@ export default function SiteSettingsPage() {
     whatsapp_link: '',
     facebook_messenger_link: '',
     facebook_messenger_enabled: 'false',
+    report_notification_emails: '',
+    ceo_email: '',
+    admin_email: '',
   });
 
   useEffect(() => {
@@ -45,7 +48,7 @@ export default function SiteSettingsPage() {
         data.settings.forEach((setting: Setting) => {
           settingsMap[setting.setting_key] = setting.setting_value;
         });
-        setFormData(settingsMap);
+        setFormData((prev) => ({ ...prev, ...settingsMap }));
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -224,6 +227,69 @@ export default function SiteSettingsPage() {
           </div>
 
           {/* Save Button */}
+          <div className="border-t border-gray-200 pt-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <Mail className="text-emerald-600" size={24} />
+              <h2 className="text-xl font-semibold text-gray-900">
+                Research Report Notifications
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Leadership Emails (comma-separated)
+                </label>
+                <textarea
+                  value={formData.report_notification_emails}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      report_notification_emails: e.target.value,
+                    })
+                  }
+                  rows={3}
+                  placeholder="ceo@company.com, admin@company.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  When a researcher submits a report, copies are sent to these emails.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CEO Email (optional fallback)
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.ceo_email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, ceo_email: e.target.value })
+                    }
+                    placeholder="ceo@company.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Admin Email (optional fallback)
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.admin_email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, admin_email: e.target.value })
+                    }
+                    placeholder="admin@company.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="pt-4">
             <button
               onClick={handleSave}

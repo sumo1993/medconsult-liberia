@@ -34,6 +34,14 @@ export default function RequestAssignmentPage() {
 
     try {
       const token = localStorage.getItem('auth-token');
+      if (!token) {
+        setNotification({
+          type: 'error',
+          message: 'Your session expired. Please login again.',
+        });
+        setIsSubmitting(false);
+        return;
+      }
       
       // Convert first file to base64 if exists
       let attachment_data = null;
@@ -55,13 +63,14 @@ export default function RequestAssignmentPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
           subject: formData.subject,
           deadline: formData.deadline || null,
+          priority: formData.priority,
           attachment_data,
           attachment_filename,
         }),
@@ -76,10 +85,12 @@ export default function RequestAssignmentPage() {
           router.push('/dashboard/client/assignments');
         }, 2000);
       } else {
-        const data = await response.json();
+        const data = await response.json().catch(() => null);
+        const detail = data?.details ? ` (${data.details})` : '';
+        const code = data?.code ? ` [${data.code}]` : '';
         setNotification({
           type: 'error',
-          message: data.error || 'Failed to submit assignment request',
+          message: (data?.error || 'Failed to submit assignment request') + code + detail,
         });
         setIsSubmitting(false);
       }

@@ -7,6 +7,8 @@ import {
   MessageSquare, FileText, Award, Target, Trash2, CheckCheck
 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface Notification {
   id: number;
@@ -20,13 +22,19 @@ interface Notification {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { markCategorySeen } = useNotifications('researcher');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  const getNotificationKey = (n: Notification) =>
+    n.id > 0 ? `id:${n.id}` : `${n.type}|${n.title}|${n.message}|${n.action_url || ''}`;
 
   const fetchNotifications = async () => {
     try {
@@ -36,7 +44,16 @@ export default function NotificationsPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data);
+        let readSet = new Set<string>();
+        try {
+          const raw = localStorage.getItem('researcher_notification_reads');
+          const parsed = raw ? JSON.parse(raw) : [];
+          readSet = new Set<string>(Array.isArray(parsed) ? parsed : []);
+        } catch {}
+        const normalized = (Array.isArray(data) ? data : []).map((n: Notification) =>
+          readSet.has(getNotificationKey(n)) ? { ...n, is_read: true } : n
+        );
+        setNotifications(normalized);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -60,6 +77,20 @@ export default function NotificationsPage() {
     }
   };
 
+  const markLocalAsRead = (notification: Notification) => {
+    const key = getNotificationKey(notification);
+    setNotifications(prev =>
+      prev.map(n => (getNotificationKey(n) === key ? { ...n, is_read: true } : n))
+    );
+    try {
+      const raw = localStorage.getItem('researcher_notification_reads');
+      const parsed = raw ? JSON.parse(raw) : [];
+      const set = new Set<string>(Array.isArray(parsed) ? parsed : []);
+      set.add(key);
+      localStorage.setItem('researcher_notification_reads', JSON.stringify(Array.from(set)));
+    } catch {}
+  };
+
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem('auth-token');
@@ -68,6 +99,14 @@ export default function NotificationsPage() {
         headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
       });
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      try {
+        const allKeys = notifications.map(getNotificationKey);
+        localStorage.setItem('researcher_notification_reads', JSON.stringify(allKeys));
+      } catch {}
+      markCategorySeen('messages');
+      markCategorySeen('appointments');
+      markCategorySeen('assignments');
+      markCategorySeen('researchPosts');
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -101,8 +140,17 @@ export default function NotificationsPage() {
     if (filter === 'unread') return !n.is_read;
     return n.type === filter;
   });
+  const sortedNotifications = [...filteredNotifications].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedNotifications.length / itemsPerPage));
+  const paginatedNotifications = sortedNotifications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [notifications, filter]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -177,7 +225,7 @@ export default function NotificationsPage() {
             <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading notifications...</p>
           </div>
-        ) : filteredNotifications.length === 0 ? (
+        ) : sortedNotifications.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow-sm">
             <Bell className="mx-auto mb-4 text-gray-300" size={64} />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Notifications</h3>
@@ -189,11 +237,22 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredNotifications.map((notification) => (
+            {paginatedNotifications.map((notification) => (
               <div
                 key={notification.id}
-                onClick={() => {
-                  if (!notification.is_read) markAsRead(notification.id);
+                onClick={async () => {
+                  if (!notification.is_read) {
+                    markLocalAsRead(notification);
+                    if (notification.type === 'message') markCategorySeen('messages');
+                    if (notification.type === 'deadline') markCategorySeen('appointments');
+                    if (notification.type === 'info') markCategorySeen('researchPosts');
+                    if (notification.type === 'success' || notification.type === 'achievement' || notification.type === 'warning') {
+                      markCategorySeen('assignments');
+                    }
+                    if (notification.id > 0) {
+                      await markAsRead(notification.id);
+                    }
+                  }
                   if (notification.action_url) router.push(notification.action_url);
                 }}
                 className={`${getBgColor(notification.type, notification.is_read)} rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all`}
@@ -221,10 +280,14 @@ export default function NotificationsPage() {
                 </div>
               </div>
             ))}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </main>
     </div>
   );
 }
-

@@ -3,11 +3,23 @@ import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 import { verifyAuth } from '@/lib/middleware';
 
+const dbClient = (process.env.DB_CLIENT || '').toLowerCase();
+const usePostgres =
+  dbClient === 'postgres' ||
+  dbClient === 'postgresql' ||
+  !!process.env.DATABASE_URL;
+
 // Helper to check if column exists
 async function columnExists(table: string, column: string): Promise<boolean> {
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      usePostgres
+        ? `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = ? AND column_name = ?`
+        : `SELECT COLUMN_NAME
+           FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
       [table, column]
     );
     return rows.length > 0;
@@ -23,14 +35,44 @@ async function ensureMessageColumns() {
     const hasReactions = await columnExists('assignment_messages', 'reactions');
     
     if (!hasReplyTo) {
-      await pool.execute(`ALTER TABLE assignment_messages ADD COLUMN reply_to_id INT NULL`);
+      await pool.execute(
+        usePostgres
+          ? `ALTER TABLE assignment_messages ADD COLUMN IF NOT EXISTS reply_to_id INTEGER NULL`
+          : `ALTER TABLE assignment_messages ADD COLUMN reply_to_id INT NULL`
+      );
     }
     if (!hasReactions) {
-      await pool.execute(`ALTER TABLE assignment_messages ADD COLUMN reactions JSON NULL`);
+      await pool.execute(
+        usePostgres
+          ? `ALTER TABLE assignment_messages ADD COLUMN IF NOT EXISTS reactions JSONB NULL`
+          : `ALTER TABLE assignment_messages ADD COLUMN reactions JSON NULL`
+      );
     }
   } catch (error) {
     console.log('Columns may already exist:', error);
   }
+}
+
+function safeParseReactions(value: unknown): Record<string, number[]> {
+  if (!value) return {};
+  if (typeof value === 'object' && value !== null) {
+    return value as Record<string, number[]>;
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, number[]>;
+      }
+    } catch {}
+  }
+  return {};
+}
+
+function sameUserId(a: unknown, b: unknown): boolean {
+  const aNum = Number(a);
+  const bNum = Number(b);
+  return Number.isFinite(aNum) && Number.isFinite(bNum) && aNum === bNum;
 }
 
 export async function GET(
@@ -53,7 +95,7 @@ export async function GET(
 
     // Verify user has access to this request
     const [requests] = await pool.execute<RowDataPacket[]>(
-      'SELECT client_id, doctor_id FROM assignment_requests WHERE id = ?',
+      'SELECT client_id, doctor_id, consultant_id FROM assignment_requests WHERE id = ?',
       [requestId]
     );
 
@@ -65,10 +107,11 @@ export async function GET(
     const assignmentRequest = requests[0];
     console.log('[Messages API] Assignment client_id:', assignmentRequest.client_id, 'doctor_id:', assignmentRequest.doctor_id);
     
-    // Allow access for: client, assigned doctor, admin, or management
+    // Allow access for: client, assigned consultant/doctor, admin, or management
     const isAuthorized =
-      assignmentRequest.client_id === user.userId ||
-      assignmentRequest.doctor_id === user.userId ||
+      sameUserId(assignmentRequest.client_id, user.userId) ||
+      sameUserId(assignmentRequest.consultant_id, user.userId) ||
+      sameUserId(assignmentRequest.doctor_id, user.userId) ||
       user.role === 'admin' ||
       user.role === 'management';
 
@@ -79,24 +122,58 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Fetch messages with reply info
-    const [messages] = await pool.execute<RowDataPacket[]>(
-      `SELECT 
-        am.*, 
-        u.full_name as sender_name, 
-        u.role as sender_role,
-        reply.message as reply_to_message,
-        reply.sender_id as reply_to_sender_id,
-        reply_user.full_name as reply_to_sender_name,
-        reply.attachment_filename as reply_to_attachment
-       FROM assignment_messages am
-       JOIN users u ON am.sender_id = u.id
-       LEFT JOIN assignment_messages reply ON am.reply_to_id = reply.id
-       LEFT JOIN users reply_user ON reply.sender_id = reply_user.id
-       WHERE am.assignment_request_id = ?
-       ORDER BY am.created_at ASC`,
-      [requestId]
-    );
+    let messages: RowDataPacket[] = [];
+    try {
+      // Preferred query with reply metadata.
+      const [fullMessages] = await pool.execute<RowDataPacket[]>(
+        `SELECT 
+          am.*, 
+          u.full_name as sender_name, 
+          u.role as sender_role,
+          reply.message as reply_to_message,
+          reply.sender_id as reply_to_sender_id,
+          reply_user.full_name as reply_to_sender_name,
+          reply.attachment_filename as reply_to_attachment
+         FROM assignment_messages am
+         JOIN users u ON am.sender_id = u.id
+         LEFT JOIN assignment_messages reply ON am.reply_to_id = reply.id
+         LEFT JOIN users reply_user ON reply.sender_id = reply_user.id
+         WHERE am.assignment_request_id = ?
+         ORDER BY am.created_at ASC`,
+        [requestId]
+      );
+      messages = fullMessages;
+    } catch (fullQueryError) {
+      console.warn('[Messages API] Full query failed, using fallback query:', fullQueryError);
+      // Fallback query without reply joins/reaction assumptions.
+      const [fallbackMessages] = await pool.execute<RowDataPacket[]>(
+        `SELECT 
+          am.id,
+          am.assignment_request_id,
+          am.sender_id,
+          am.message,
+          am.message_type,
+          am.attachment_filename,
+          am.attachment_type,
+          am.created_at,
+          u.full_name as sender_name,
+          u.role as sender_role
+         FROM assignment_messages am
+         JOIN users u ON am.sender_id = u.id
+         WHERE am.assignment_request_id = ?
+         ORDER BY am.created_at ASC`,
+        [requestId]
+      );
+      messages = fallbackMessages.map((msg) => ({
+        ...msg,
+        reply_to_id: null,
+        reactions: {},
+        reply_to_message: null,
+        reply_to_sender_id: null,
+        reply_to_sender_name: null,
+        reply_to_attachment: null,
+      })) as RowDataPacket[];
+    }
 
     console.log('[Messages API] Found', messages.length, 'message(s)');
 
@@ -105,7 +182,7 @@ export async function GET(
       ...msg,
       has_attachment: !!msg.attachment_filename,
       attachment_data: null, // Don't send file data in list
-      reactions: msg.reactions ? (typeof msg.reactions === 'string' ? JSON.parse(msg.reactions) : msg.reactions) : {},
+      reactions: safeParseReactions(msg.reactions),
       reply_to: msg.reply_to_id ? {
         id: msg.reply_to_id,
         message: msg.reply_to_message,
@@ -118,8 +195,9 @@ export async function GET(
     return NextResponse.json(messagesWithData);
   } catch (error) {
     console.error('Error fetching messages:', error);
+    const err = error as { message?: string; code?: string };
     return NextResponse.json(
-      { error: 'Failed to fetch messages' },
+      { error: 'Failed to fetch messages', details: err?.message || 'Unknown error', code: err?.code || '' },
       { status: 500 }
     );
   }
@@ -142,7 +220,7 @@ export async function POST(
 
     // Verify user has access to this request
     const [requests] = await pool.execute<RowDataPacket[]>(
-      'SELECT client_id, doctor_id FROM assignment_requests WHERE id = ?',
+      'SELECT client_id, doctor_id, consultant_id FROM assignment_requests WHERE id = ?',
       [requestId]
     );
 
@@ -151,10 +229,11 @@ export async function POST(
     }
 
     const assignmentRequest = requests[0];
-    // Allow access for: client, assigned doctor, admin, or management
+    // Allow access for: client, assigned consultant/doctor, admin, or management
     const isAuthorized =
-      assignmentRequest.client_id === user.userId ||
-      assignmentRequest.doctor_id === user.userId ||
+      sameUserId(assignmentRequest.client_id, user.userId) ||
+      sameUserId(assignmentRequest.consultant_id, user.userId) ||
+      sameUserId(assignmentRequest.doctor_id, user.userId) ||
       user.role === 'admin' ||
       user.role === 'management';
 
@@ -236,7 +315,7 @@ export async function PATCH(
 
     // Verify user has access to this request
     const [requests] = await pool.execute<RowDataPacket[]>(
-      'SELECT client_id, doctor_id FROM assignment_requests WHERE id = ?',
+      'SELECT client_id, doctor_id, consultant_id FROM assignment_requests WHERE id = ?',
       [requestId]
     );
 
@@ -246,8 +325,9 @@ export async function PATCH(
 
     const assignmentRequest = requests[0];
     const isAuthorized =
-      assignmentRequest.client_id === user.userId ||
-      assignmentRequest.doctor_id === user.userId ||
+      sameUserId(assignmentRequest.client_id, user.userId) ||
+      sameUserId(assignmentRequest.consultant_id, user.userId) ||
+      sameUserId(assignmentRequest.doctor_id, user.userId) ||
       user.role === 'admin' ||
       user.role === 'management';
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, DollarSign, TrendingUp, Wallet, CreditCard, Eye, EyeOff, Download, Calendar } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PaginationControls from '@/components/PaginationControls';
 
 export default function ConsultantEarningsPage() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function ConsultantEarningsPage() {
     pending: 0,
   });
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchEarnings();
@@ -28,11 +31,14 @@ export default function ConsultantEarningsPage() {
       
       // Fetch my earnings
       const earningsRes = await fetch('/api/my-earnings', {
-        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        credentials: 'include',
       });
       if (earningsRes.ok) {
         const data = await earningsRes.json();
         setMyEarnings(data);
+      } else if (earningsRes.status === 401 || earningsRes.status === 403) {
+        setMyEarnings(null);
       }
 
       // Fetch detailed earnings
@@ -67,6 +73,15 @@ export default function ConsultantEarningsPage() {
   const formatCurrency = (amount: number) => {
     return showAmounts ? `$${amount.toFixed(2)}` : '••••••';
   };
+  const sortedPaymentHistory = [...paymentHistory].sort(
+    (a, b) => new Date(b.payment_date || b.created_at).getTime() - new Date(a.payment_date || a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedPaymentHistory.length / itemsPerPage));
+  const paginatedPaymentHistory = sortedPaymentHistory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [paymentHistory]);
 
   if (loading) {
     return (
@@ -189,7 +204,7 @@ export default function ConsultantEarningsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {paymentHistory.map((payment, index) => (
+                  {paginatedPaymentHistory.map((payment, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {new Date(payment.payment_date || payment.created_at).toLocaleDateString()}
@@ -212,6 +227,13 @@ export default function ConsultantEarningsPage() {
                   ))}
                 </tbody>
               </table>
+              <div className="px-4 py-4 border-t border-gray-100">
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -219,5 +241,3 @@ export default function ConsultantEarningsPage() {
     </div>
   );
 }
-
-

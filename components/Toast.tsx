@@ -18,9 +18,15 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
   }, [duration, onClose]);
 
   const styles = {
-    success: 'bg-gradient-to-r from-emerald-500 to-green-500',
-    error: 'bg-gradient-to-r from-red-500 to-pink-500',
-    info: 'bg-gradient-to-r from-blue-500 to-indigo-500',
+    success: 'bg-white text-gray-900 border border-emerald-200',
+    error: 'bg-white text-gray-900 border border-red-200',
+    info: 'bg-white text-gray-900 border border-blue-200',
+  };
+
+  const iconWrapStyles = {
+    success: 'bg-emerald-100 text-emerald-700',
+    error: 'bg-red-100 text-red-700',
+    info: 'bg-blue-100 text-blue-700',
   };
 
   const icons = {
@@ -30,15 +36,17 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
-      <div className={`${styles[type]} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] max-w-md`}>
-        <div className="flex-shrink-0">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+      <div className={`${styles[type]} w-full max-w-[460px] px-5 py-4 rounded-2xl shadow-[0_20px_45px_rgba(15,23,42,0.22)] flex items-center gap-3 pointer-events-auto`}>
+        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${iconWrapStyles[type]}`}>
           {icons[type]}
         </div>
-        <p className="flex-1 font-medium">{message}</p>
+        <div className="flex-1">
+          <p className="text-sm font-semibold leading-6">{message}</p>
+        </div>
         <button
           onClick={onClose}
-          className="flex-shrink-0 hover:bg-white/20 rounded-full p-1 transition-colors"
+          className="flex-shrink-0 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full p-1 transition-colors pointer-events-auto"
         >
           <X className="w-5 h-5" />
         </button>

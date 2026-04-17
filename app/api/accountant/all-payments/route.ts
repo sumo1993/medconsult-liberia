@@ -12,16 +12,16 @@ export async function GET(request: NextRequest) {
 
     // Get all payments from assignment_requests (client payments)
     // Include all assignments with payment activity (payment uploaded, verified, in progress, or completed)
-    // Calculate 75/10/15 split for each payment
+    // Assignment split: 50% consultant, 10% website, 40% team
     const [assignmentPayments] = await pool.execute<RowDataPacket[]>(
       `SELECT 
         ar.id,
         'assignment_payment' as payment_type,
         ar.title as description,
         COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) as amount,
-        ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.75, 2) as consultant_share,
+        ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.50, 2) as consultant_share,
         ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.10, 2) as website_fee,
-        ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.15, 2) as team_fee,
+        ROUND(COALESCE(ar.final_price, ar.negotiated_price, ar.proposed_price, 0) * 0.40, 2) as team_fee,
         ar.payment_method,
         ar.payment_receipt_filename as receipt,
         CASE 
@@ -35,27 +35,29 @@ export async function GET(request: NextRequest) {
         COALESCE(ar.completed_at, ar.updated_at) as payment_date,
         u_client.full_name as client_name,
         u_client.email as client_email,
-        u_doctor.full_name as consultant_name,
-        u_doctor.email as consultant_email,
+        u_assignee.full_name as consultant_name,
+        u_assignee.email as consultant_email,
         CONCAT('ASSIGN-', ar.id) as transaction_id
        FROM assignment_requests ar
        LEFT JOIN users u_client ON ar.client_id = u_client.id
-       LEFT JOIN users u_doctor ON ar.doctor_id = u_doctor.id
+       LEFT JOIN users u_assignee ON COALESCE(ar.consultant_id, ar.doctor_id) = u_assignee.id
        WHERE ar.status IN ('payment_uploaded', 'payment_verified', 'in_progress', 'completed')
        AND (ar.final_price > 0 OR ar.negotiated_price > 0 OR ar.proposed_price > 0)
        ORDER BY ar.updated_at DESC`
     );
 
-    // Get all transactions from transactions table with 75/10/15 breakdown
+    // Get all transactions from transactions table.
+    // For partner/donor transactions, keep original method: 0% consultant, 5% website, 95% team.
+    // For other legacy transactions, keep previous display split: 75% consultant, 10% website, 15% team.
     const [transactions] = await pool.execute<RowDataPacket[]>(
       `SELECT 
         t.id,
         'transaction' as payment_type,
         t.description,
         t.amount,
-        ROUND(t.amount * 0.75, 2) as consultant_share,
-        ROUND(t.amount * 0.10, 2) as website_fee,
-        ROUND(t.amount * 0.15, 2) as team_fee,
+        ROUND(CASE WHEN t.transaction_type IN ('partnership_payment', 'grant') THEN 0 ELSE t.amount * 0.75 END, 2) as consultant_share,
+        ROUND(CASE WHEN t.transaction_type IN ('partnership_payment', 'grant') THEN t.amount * 0.05 ELSE t.amount * 0.10 END, 2) as website_fee,
+        ROUND(CASE WHEN t.transaction_type IN ('partnership_payment', 'grant') THEN t.amount * 0.95 ELSE t.amount * 0.15 END, 2) as team_fee,
         t.payment_method,
         t.receipt_photo as receipt,
         t.payment_status,
@@ -80,6 +82,9 @@ export async function GET(request: NextRequest) {
         transaction_id: p.transaction_id,
         description: p.description,
         amount: parseFloat(p.amount) || 0,
+        consultant_share: parseFloat(p.consultant_share) || 0,
+        website_fee: parseFloat(p.website_fee) || 0,
+        team_fee: parseFloat(p.team_fee) || 0,
         payment_method: p.payment_method || 'Mobile Money',
         payment_status: p.payment_status,
         assignment_status: p.assignment_status,
@@ -97,6 +102,9 @@ export async function GET(request: NextRequest) {
         transaction_id: t.transaction_id,
         description: t.description,
         amount: parseFloat(t.amount) || 0,
+        consultant_share: parseFloat(t.consultant_share) || 0,
+        website_fee: parseFloat(t.website_fee) || 0,
+        team_fee: parseFloat(t.team_fee) || 0,
         payment_method: t.payment_method || 'Cash',
         payment_status: t.payment_status,
         assignment_status: t.assignment_status,

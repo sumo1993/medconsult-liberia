@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Save, X, Check, XCircle, Clock, Eye, Globe, EyeOff, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import Toast from '@/components/Toast';
 
 export default function AdminPartnershipsPage() {
   const router = useRouter();
@@ -24,7 +25,8 @@ export default function AdminPartnershipsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [viewingPartner, setViewingPartner] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchPartners();
@@ -123,26 +125,32 @@ export default function AdminPartnershipsPage() {
           statusText: response.statusText,
           body: errorText
         });
-        alert(`Failed to update partnership (${response.status}): ${errorText}`);
+        setToast({
+          message: `Failed to update partnership (${response.status}): ${errorText}`,
+          type: 'error',
+        });
       }
     } catch (error: any) {
       console.error('[Admin] Error updating partnership:', error);
-      alert(`An error occurred: ${error?.message || 'Unknown error'}`);
+      setToast({ message: `An error occurred: ${error?.message || 'Unknown error'}`, type: 'error' });
     }
   };
 
   const filteredPartners = filter === 'all' 
     ? partners 
     : partners.filter(p => p.status === filter);
+  const sortedPartners = [...filteredPartners].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   const pendingCount = partners.filter(p => p.status === 'pending').length;
   const approvedCount = partners.filter(p => p.status === 'approved').length;
 
   // Pagination
-  const totalPages = Math.ceil(filteredPartners.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedPartners.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedPartners = filteredPartners.slice(startIndex, endIndex);
+  const paginatedPartners = sortedPartners.slice(startIndex, endIndex);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -151,6 +159,13 @@ export default function AdminPartnershipsPage() {
 
   return (
     <>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* View Partner Details Modal */}
       {viewingPartner && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-emerald-900/30 backdrop-blur-sm">
@@ -477,7 +492,7 @@ export default function AdminPartnershipsPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
             </div>
-          ) : filteredPartners.length > 0 ? (
+          ) : sortedPartners.length > 0 ? (
             <>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {paginatedPartners.map((partner) => (
@@ -546,7 +561,7 @@ export default function AdminPartnershipsPage() {
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredPartners.length)} of {filteredPartners.length} partnerships
+                  Showing {startIndex + 1} to {Math.min(endIndex, sortedPartners.length)} of {sortedPartners.length} partnerships
                 </div>
                 <div className="flex items-center gap-2">
                   <button

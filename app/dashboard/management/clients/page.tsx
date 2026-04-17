@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Users, Mail, Phone, Calendar, FileText, MessageSquare, Search, Filter } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Client {
   id: number;
@@ -21,6 +22,8 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('recent');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchClients();
@@ -62,6 +65,12 @@ export default function ClientsPage() {
         return new Date(b.last_contact).getTime() - new Date(a.last_contact).getTime();
     }
   });
+  const totalPages = Math.max(1, Math.ceil(sortedClients.length / itemsPerPage));
+  const paginatedClients = sortedClients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [clients, searchTerm, sortBy]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -170,7 +179,7 @@ export default function ClientsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sortedClients.map((client) => (
+            {paginatedClients.map((client) => (
               <div
                 key={client.id}
                 className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 cursor-pointer border border-gray-200 hover:border-emerald-500"
@@ -238,6 +247,15 @@ export default function ClientsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {!loading && sortedClients.length > 0 && (
+          <div className="mt-6">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </main>

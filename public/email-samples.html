@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MedConsult Liberia — Email samples (preview)</title>
+  <style>
+    body { font-family: system-ui, Segoe UI, sans-serif; margin: 0; background: #e5e7eb; color: #1f2937; }
+    .page { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { color: #047857; font-size: 1.5rem; margin: 0 0 8px; }
+    .sub { font-size: 0.95rem; color: #4b5563; margin: 0 0 20px; }
+    .nav {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      padding: 12px 16px; margin: 0 -16px 24px;
+      border-bottom: 1px solid #d1d5db;
+      display: flex; flex-wrap: wrap; gap: 8px 16px;
+    }
+    .nav a { color: #059669; font-weight: 600; text-decoration: none; }
+    .nav a:hover { text-decoration: underline; }
+    section {
+      background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 28px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    section h2 { margin: 0 0 6px; font-size: 1.1rem; color: #111827; }
+    .subject { font-size: 0.9rem; color: #6b7280; margin: 0 0 16px; font-family: ui-monospace, monospace; }
+    .frame {
+      border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
+      background: #f3f4f6;
+    }
+    .frame iframe { width: 100%; border: 0; display: block; min-height: 420px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>MedConsult Liberia — transactional email samples</h1>
+    <p class="sub">
+      These match the HTML sent by <code>lib/email.ts</code> (sample names &amp; links).
+      With dev server on port 3002, open this file at
+      <strong>http://localhost:3002/email-samples.html</strong>
+    </p>
+
+    <nav class="nav" aria-label="Jump to sample">
+      <a href="#register">1. Registration welcome</a>
+      <a href="#team">2. Team application (applicant)</a>
+      <a href="#census">3. Field / census (applicant)</a>
+      <a href="#admin-team">4. New team application (admin)</a>
+    </nav>
+
+    <!-- 1 Registration -->
+    <section id="register">
+      <h2>1. Client registration welcome</h2>
+      <p class="subject">Subject: Welcome to MedConsult Liberia — your account is ready</p>
+      <div class="frame"><iframe title="Registration email" srcdoc="<!DOCTYPE html><html><head><meta charset=&quot;utf-8&quot;></head><body style=&quot;margin:0;padding:0;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f3f4f6;color:#1f2937;&quot;>
+  <table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;background:#f3f4f6;padding:24px 12px;&quot;>
+    <tr><td align=&quot;center&quot;>
+      <table width=&quot;100%&quot; style=&quot;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);&quot;>
+        <tr><td style=&quot;background:linear-gradient(135deg,#047857 0%,#059669 100%);padding:28px 24px;text-align:center;&quot;>
+          <h1 style=&quot;margin:0;font-size:22px;color:#ffffff;font-weight:700;&quot;>MedConsult Liberia</h1>
+          <p style=&quot;margin:8px 0 0;font-size:13px;color:#d1fae5;&quot;>Healthcare · Research · Public health</p>
+        </td></tr>
+        <tr><td style=&quot;padding:32px 28px;font-size:15px;line-height:1.65;color:#374151;&quot;>
+          <p style=&quot;margin:0 0 16px;font-size:18px;font-weight:600;color:#047857;&quot;>Welcome, Jane Doe!</p>
+          <p style=&quot;margin:0 0 16px;&quot;>Your MedConsult Liberia account is ready. You can sign in to book consultations, request assignment help, message your care team, and access health resources.</p>
+          <ul style=&quot;margin:0 0 20px;padding-left:20px;color:#4b5563;&quot;>
+            <li style=&quot;margin-bottom:8px;&quot;>Book appointments and manage your profile</li>
+            <li style=&quot;margin-bottom:8px;&quot;>Request help with assignments and research</li>
+            <li style=&quot;margin-bottom:8px;&quot;>Receive secure messages from our team</li>
+          </ul>
+          <div style=&quot;text-align:center;margin:28px 0;&quot;>
+            <a href=&quot;http://localhost:3002/login&quot; style=&quot;display:inline-block;padding:14px 32px;background:#059669;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;&quot;>Sign in to your account</a>
+          </div>
+          <p style=&quot;margin:24px 0 0;font-size:14px;color:#6b7280;&quot;>If you did not create this account, please ignore this email or contact us through our website.</p>
+        </td></tr>
+        <tr><td style=&quot;padding:20px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#6b7280;&quot;>
+          © 2026 MedConsult Liberia<br/>
+          <span style=&quot;color:#9ca3af;&quot;>Automated message — for support, reply is not monitored; use the contact options on our website.</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"></iframe></div>
+    </section>
+
+    <!-- 2 Team applicant -->
+    <section id="team">
+      <h2>2. Join Our Team — applicant confirmation</h2>
+      <p class="subject">Subject: MedConsult Liberia — We received your team application</p>
+      <div class="frame"><iframe title="Team application email" srcdoc="<!DOCTYPE html><html><head><meta charset=&quot;utf-8&quot;></head><body style=&quot;margin:0;padding:0;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f3f4f6;color:#1f2937;&quot;>
+  <table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;background:#f3f4f6;padding:24px 12px;&quot;>
+    <tr><td align=&quot;center&quot;>
+      <table width=&quot;100%&quot; style=&quot;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);&quot;>
+        <tr><td style=&quot;background:linear-gradient(135deg,#047857 0%,#059669 100%);padding:28px 24px;text-align:center;&quot;>
+          <h1 style=&quot;margin:0;font-size:22px;color:#ffffff;font-weight:700;&quot;>MedConsult Liberia</h1>
+          <p style=&quot;margin:8px 0 0;font-size:13px;color:#d1fae5;&quot;>Healthcare · Research · Public health</p>
+        </td></tr>
+        <tr><td style=&quot;padding:32px 28px;font-size:15px;line-height:1.65;color:#374151;&quot;>
+          <p style=&quot;margin:0 0 16px;font-size:18px;font-weight:600;color:#047857;&quot;>We received your application</p>
+          <p style=&quot;margin:0 0 12px;&quot;>Hi Dr. Samuel K. Doe,</p>
+          <p style=&quot;margin:0 0 16px;&quot;>Thank you for applying to join <strong>MedConsult Liberia</strong>. Your submission for <strong>Public Health / M&amp;E</strong> is now in our review queue.</p>
+          <p style=&quot;margin:0 0 16px;color:#4b5563;&quot;>Our leadership team will review your credentials and experience. You will receive another email when your application is approved, declined, or if we need more information.</p>
+          <div style=&quot;text-align:center;margin:28px 0;&quot;>
+            <a href=&quot;http://localhost:3002/apply-team/status&quot; style=&quot;display:inline-block;padding:14px 32px;background:#059669;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;&quot;>Check application status</a>
+          </div>
+          <p style=&quot;margin:20px 0 0;font-size:14px;color:#6b7280;&quot;>Reference: use the same email address you applied with when checking status.</p>
+        </td></tr>
+        <tr><td style=&quot;padding:20px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#6b7280;&quot;>
+          © 2026 MedConsult Liberia<br/>
+          <span style=&quot;color:#9ca3af;&quot;>Automated message — for support, reply is not monitored; use the contact options on our website.</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"></iframe></div>
+    </section>
+
+    <!-- 3 Census applicant -->
+    <section id="census">
+      <h2>3. Field / census — applicant confirmation</h2>
+      <p class="subject">Subject: MedConsult Liberia — Field / census application received</p>
+      <div class="frame"><iframe title="Census application email" srcdoc="<!DOCTYPE html><html><head><meta charset=&quot;utf-8&quot;></head><body style=&quot;margin:0;padding:0;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f3f4f6;color:#1f2937;&quot;>
+  <table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;background:#f3f4f6;padding:24px 12px;&quot;>
+    <tr><td align=&quot;center&quot;>
+      <table width=&quot;100%&quot; style=&quot;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);&quot;>
+        <tr><td style=&quot;background:linear-gradient(135deg,#047857 0%,#059669 100%);padding:28px 24px;text-align:center;&quot;>
+          <h1 style=&quot;margin:0;font-size:22px;color:#ffffff;font-weight:700;&quot;>MedConsult Liberia</h1>
+          <p style=&quot;margin:8px 0 0;font-size:13px;color:#d1fae5;&quot;>Healthcare · Research · Public health</p>
+        </td></tr>
+        <tr><td style=&quot;padding:32px 28px;font-size:15px;line-height:1.65;color:#374151;&quot;>
+          <p style=&quot;margin:0 0 16px;font-size:18px;font-weight:600;color:#047857;&quot;>We received your application</p>
+          <p style=&quot;margin:0 0 12px;&quot;>Hi Mary Johnson,</p>
+          <p style=&quot;margin:0 0 16px;&quot;>Thank you for applying to support <strong>field / census data collection</strong> with MedConsult Liberia. Your interest in <strong>Montserrado County</strong> has been recorded.</p>
+          <p style=&quot;margin:0 0 16px;color:#4b5563;&quot;>We will review your experience and motivation and email you again when a decision is made or if we need more details.</p>
+          <div style=&quot;text-align:center;margin:28px 0;&quot;>
+            <a href=&quot;http://localhost:3002/apply-census/status&quot; style=&quot;display:inline-block;padding:14px 32px;background:#059669;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;&quot;>Check application status</a>
+          </div>
+          <p style=&quot;margin:20px 0 0;font-size:14px;color:#6b7280;&quot;>Keep this email for your records.</p>
+        </td></tr>
+        <tr><td style=&quot;padding:20px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#6b7280;&quot;>
+          © 2026 MedConsult Liberia<br/>
+          <span style=&quot;color:#9ca3af;&quot;>Automated message — for support, reply is not monitored; use the contact options on our website.</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"></iframe></div>
+    </section>
+
+    <!-- 4 Admin team -->
+    <section id="admin-team">
+      <h2>4. Internal — new team application (admin / management)</h2>
+      <p class="subject">Subject: New team application — MedConsult Liberia</p>
+      <div class="frame"><iframe title="Admin team notification" srcdoc="<!DOCTYPE html><html><head><meta charset=&quot;utf-8&quot;></head><body style=&quot;margin:0;padding:0;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f3f4f6;color:#1f2937;&quot;>
+  <table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;background:#f3f4f6;padding:24px 12px;&quot;>
+    <tr><td align=&quot;center&quot;>
+      <table width=&quot;100%&quot; style=&quot;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);&quot;>
+        <tr><td style=&quot;background:linear-gradient(135deg,#047857 0%,#059669 100%);padding:28px 24px;text-align:center;&quot;>
+          <h1 style=&quot;margin:0;font-size:22px;color:#ffffff;font-weight:700;&quot;>MedConsult Liberia</h1>
+          <p style=&quot;margin:8px 0 0;font-size:13px;color:#d1fae5;&quot;>Healthcare · Research · Public health</p>
+        </td></tr>
+        <tr><td style=&quot;padding:32px 28px;font-size:15px;line-height:1.65;color:#374151;&quot;>
+          <p style=&quot;margin:0 0 16px;font-size:17px;font-weight:600;color:#047857;&quot;>New team application</p>
+          <p style=&quot;margin:0 0 16px;color:#4b5563;&quot;>A new application was submitted from the public <strong>Join Our Team</strong> form.</p>
+          <table style=&quot;width:100%;border-collapse:collapse;font-size:14px;&quot;>
+            <tr><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;width:140px;&quot;>Name</td><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;&quot;>Dr. Samuel K. Doe</td></tr>
+            <tr><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;&quot;>Email</td><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;&quot;>samuel.doe@example.com</td></tr>
+            <tr><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;&quot;>Phone</td><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;&quot;>+231 77 000 0000</td></tr>
+            <tr><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;&quot;>Specialty</td><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;&quot;>Public Health / M&amp;E</td></tr>
+            <tr><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;&quot;>Experience</td><td style=&quot;padding:8px 0;border-bottom:1px solid #e5e7eb;&quot;>8 years</td></tr>
+            <tr><td style=&quot;padding:8px 0;color:#6b7280;&quot;>License</td><td style=&quot;padding:8px 0;&quot;>MOH-XXXX-2020</td></tr>
+          </table>
+          <div style=&quot;text-align:center;margin:28px 0;&quot;>
+            <a href=&quot;http://localhost:3002/dashboard/management/team-applications&quot; style=&quot;display:inline-block;padding:14px 32px;background:#059669;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;&quot;>Review in CEO dashboard</a>
+          </div>
+          <p style=&quot;text-align:center;margin:12px 0 0;&quot;><a href=&quot;http://localhost:3002/dashboard/admin/team-applications&quot; style=&quot;color:#047857;font-size:14px;&quot;>Open admin team applications</a></p>
+        </td></tr>
+        <tr><td style=&quot;padding:20px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#6b7280;&quot;>
+          © 2026 MedConsult Liberia<br/>
+          <span style=&quot;color:#9ca3af;&quot;>Automated message — for support, reply is not monitored; use the contact options on our website.</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"></iframe></div>
+    </section>
+
+    <p style="font-size: 0.85rem; color: #6b7280; margin-top: 24px;">
+      This file is for preview only. Real emails use <code>NEXT_PUBLIC_APP_URL</code> for links.
+    </p>
+  </div>
+</body>
+</html>

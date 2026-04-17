@@ -34,7 +34,7 @@ export default function ApplyTeamPage() {
         const fileFormData = new FormData();
         fileFormData.append('file', formData.resume);
 
-        const uploadResponse = await fetch('/api/upload-resume', {
+        const uploadResponse = await fetch('/api/team-applications/upload-resume', {
           method: 'POST',
           body: fileFormData,
         });
@@ -109,15 +109,32 @@ export default function ApplyTeamPage() {
             <CheckCircle className="text-green-600 mx-auto" size={64} />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Application Submitted!</h1>
-          <p className="text-gray-600 mb-6">
-            Thank you for applying to join the MedConsult Liberia team. We have received your application 
-            and will review it within 3-5 business days. You will receive an email notification regarding 
-            the next steps.
+          <p className="text-gray-600 mb-4">
+            Thank you for applying to join the MedConsult Liberia team. We have received your application
+            and will review it within 3-5 business days.
           </p>
-          <div className="flex gap-4 justify-center">
+          <p className="text-gray-600 mb-6 text-sm">
+            <strong>How you&apos;ll hear from us:</strong> when a decision is made, we send an email to the address
+            you provided. If you are approved, the email explains how to log in (including a temporary password if
+            we create a new account for you).
+          </p>
+          <p className="text-gray-600 mb-6 text-sm">
+            You can also check your status anytime using the same email:{' '}
+            <a href="/apply-team/status" className="text-emerald-700 font-semibold underline">
+              Check application status
+            </a>
+            .
+          </p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={() => router.push('/apply-team/status')}
+              className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold"
+            >
+              Check status
+            </button>
             <button
               onClick={() => router.push('/')}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold"
+              className="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 font-semibold"
             >
               Back to Home
             </button>
@@ -125,7 +142,7 @@ export default function ApplyTeamPage() {
               onClick={() => router.push('/dashboard/general-consultation')}
               className="px-6 py-3 border-2 border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 font-semibold"
             >
-              View Portal
+              Consultant portal
             </button>
           </div>
         </div>

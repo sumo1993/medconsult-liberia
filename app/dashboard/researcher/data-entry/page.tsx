@@ -93,6 +93,9 @@ export default function DataEntryPage() {
           entry_type: 'patient_data',
           location: '',
           date: new Date().toISOString().split('T')[0],
+          gps_lat: null,
+          gps_lng: null,
+          gps_accuracy: null,
         });
       } else {
         setNotification({
@@ -210,6 +213,12 @@ export default function DataEntryPage() {
                     gps_lat: lat,
                     gps_lng: lng,
                     gps_accuracy: accuracy,
+                  }));
+                }}
+                onAddressResolved={(locationName) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    location: locationName,
                   }));
                 }}
               />
@@ -343,4 +352,3 @@ export default function DataEntryPage() {
     </div>
   );
 }
-

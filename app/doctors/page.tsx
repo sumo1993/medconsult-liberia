@@ -182,7 +182,7 @@ export default function DoctorsPage() {
                         <p className="text-lg font-bold text-gray-900">{doctor.full_name}</p>
                         <p className="text-base text-emerald-600 font-medium">{doctor.status}</p>
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 text-justify">
+                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 text-center">
                         {doctor.about_text}
                       </p>
                     </div>
@@ -252,18 +252,37 @@ export default function DoctorsPage() {
 
             {/* Modal Content */}
             <div className="p-8">
-              <h3 className="text-3xl font-bold text-emerald-700 mb-3">
+              <h3 className="text-3xl font-bold text-emerald-700 mb-3 text-center">
                 About Our Lead Consultant
               </h3>
-              <div className="mb-6 pb-6 border-b-2 border-emerald-100">
+              <div className="mb-6 pb-6 border-b-2 border-emerald-100 text-center">
                 <p className="text-2xl font-bold text-gray-900 mb-1">{selectedDoctor.full_name}</p>
                 <p className="text-xl text-emerald-600 font-semibold">{selectedDoctor.status}</p>
               </div>
               
-              <div className="prose max-w-none">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-base text-justify" style={{lineHeight: '1.8'}}>
-                  {selectedDoctor.about_text}
-                </p>
+              <div className="prose max-w-none max-w-2xl mx-auto">
+                {(() => {
+                  const paras = selectedDoctor.about_text
+                    .split(/\n\n+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  if (paras.length === 0) {
+                    return (
+                      <p className="text-gray-700 leading-relaxed text-base text-center" style={{ lineHeight: '1.8' }}>
+                        {selectedDoctor.about_text}
+                      </p>
+                    );
+                  }
+                  return paras.map((para, i) => (
+                    <p
+                      key={i}
+                      className="text-gray-700 leading-relaxed text-base text-center mb-4 last:mb-0"
+                      style={{ lineHeight: '1.8' }}
+                    >
+                      {para}
+                    </p>
+                  ));
+                })()}
               </div>
 
               {/* Additional Info */}

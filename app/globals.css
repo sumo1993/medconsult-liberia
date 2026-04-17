@@ -8,8 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 html {
@@ -88,4 +88,70 @@ body {
 
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes toast-center-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Center legacy toasts/alerts app-wide */
+[class*="fixed top-4 right-4 z-50"],
+[class*="fixed top-20 right-4 z-50"],
+[class*="fixed bottom-8 right-8 z-50"],
+[class*="fixed bottom-24 sm:bottom-8 right-8 z-50"],
+[class*="fixed top-4 right-4 z-[9999]"] {
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  max-width: min(92vw, 500px) !important;
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%) !important;
+  animation: toast-center-in 0.2s ease-out !important;
+}
+
+[class*="fixed top-4 right-4 z-50"] > *,
+[class*="fixed top-20 right-4 z-50"] > *,
+[class*="fixed bottom-8 right-8 z-50"] > *,
+[class*="fixed bottom-24 sm:bottom-8 right-8 z-50"] > *,
+[class*="fixed top-4 right-4 z-[9999]"] > * {
+  pointer-events: auto;
+  min-height: 78px;
+  width: min(92vw, 500px) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.25) !important;
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+  backdrop-filter: blur(4px);
+}
+
+/* Remove left/right border lines from toast cards */
+[class*="fixed top-4 right-4 z-50"] [class*="border-l-"],
+[class*="fixed top-20 right-4 z-50"] [class*="border-l-"],
+[class*="fixed bottom-8 right-8 z-50"] [class*="border-l-"],
+[class*="fixed bottom-24 sm:bottom-8 right-8 z-50"] [class*="border-l-"],
+[class*="fixed top-4 right-4 z-[9999]"] [class*="border-l-"] {
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+}
+
+/* Improve legacy white toasts that used left-border accents */
+[class*="fixed top-4 right-4 z-50"] > [class*="bg-white"],
+[class*="fixed top-20 right-4 z-50"] > [class*="bg-white"],
+[class*="fixed bottom-8 right-8 z-50"] > [class*="bg-white"],
+[class*="fixed bottom-24 sm:bottom-8 right-8 z-50"] > [class*="bg-white"],
+[class*="fixed top-4 right-4 z-[9999]"] > [class*="bg-white"] {
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
 }

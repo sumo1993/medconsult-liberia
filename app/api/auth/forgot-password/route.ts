@@ -3,9 +3,15 @@ import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { ensureResetPasswordColumns } from '@/lib/ensureResetColumns';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, { limit: 5, windowMs: 60_000, prefix: 'forgot-pw' });
+  if (limited) return limited;
+
   try {
+    await ensureResetPasswordColumns();
     const body = await request.json();
     const { email } = body;
 
@@ -29,16 +35,12 @@ export async function POST(request: NextRequest) {
     if (users.length > 0) {
       const user = users[0];
 
-      // Check if account is active
+      // Silently skip inactive accounts to prevent enumeration
       if (user.status !== 'active') {
-        console.log(`[Forgot Password] Account not active: ${email} (${user.status})`);
-        return NextResponse.json(
-          { 
-            error: `Your account is ${user.status}. Please contact support for assistance.`,
-            accountStatus: user.status
-          },
-          { status: 403 }
-        );
+        return NextResponse.json({
+          success: true,
+          message: 'If an account exists with that email, password reset instructions have been sent.'
+        });
       }
 
       // Generate reset token
@@ -51,16 +53,34 @@ export async function POST(request: NextRequest) {
         [resetToken, resetTokenExpiry, user.id]
       );
 
-      console.log(`[Forgot Password] Reset token generated for: ${email}`);
-      console.log(`[Forgot Password] Reset link: http://localhost:3000/reset-password?token=${resetToken}`);
+      const appOrigin =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        request.headers.get('origin') ||
+        'http://localhost:3000';
+      const resetLink = `${appOrigin.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
+
+      let emailSent = false;
+      let deliveryError = '';
 
       // Send email with reset link
       try {
-        await sendPasswordResetEmail(user.email, user.full_name, resetToken);
-        console.log(`[Forgot Password] Email sent successfully to: ${email}`);
+        await sendPasswordResetEmail(user.email, user.full_name, resetToken, resetLink);
+        emailSent = true;
       } catch (emailError) {
         console.error('[Forgot Password] Failed to send email:', emailError);
-        // Log error but don't expose it to user
+        deliveryError = emailError instanceof Error ? emailError.message : 'Unknown SMTP error';
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        return NextResponse.json({
+          success: true,
+          emailSent,
+          message: emailSent
+            ? 'Password reset email sent successfully.'
+            : 'Password reset token generated, but email delivery failed in local mode.',
+          devResetLink: emailSent ? '' : resetLink,
+          deliveryError: emailSent ? '' : deliveryError,
+        });
       }
     } else {
       console.log('[Forgot Password] User not found:', email);
@@ -74,8 +94,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[Forgot Password] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to process request. Please try again.' },
+      {
+        error: 'Failed to process request. Please try again.',
+        ...(process.env.NODE_ENV !== 'production' ? { details: errorMessage } : {}),
+      },
       { status: 500 }
     );
   }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, HelpCircle, ChevronDown, ChevronUp, MessageSquare, Mail, Phone, BookOpen } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface FAQ {
   question: string;
@@ -14,6 +15,8 @@ export default function ClientHelpPage() {
   const router = useRouter();
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const faqs: FAQ[] = [
     {
@@ -98,6 +101,8 @@ export default function ClientHelpPage() {
   const filteredFAQs = selectedCategory === 'all' 
     ? faqs 
     : faqs.filter(faq => faq.category === selectedCategory);
+  const totalPages = Math.max(1, Math.ceil(filteredFAQs.length / itemsPerPage));
+  const paginatedFAQs = filteredFAQs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const toggleFAQ = (index: number) => {
     setOpenFAQ(openFAQ === index ? null : index);
@@ -176,7 +181,11 @@ export default function ClientHelpPage() {
             {categories.map((category) => (
               <button
                 key={category}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setCurrentPage(1);
+                  setOpenFAQ(null);
+                }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   selectedCategory === category
                     ? 'bg-emerald-600 text-white'
@@ -190,13 +199,15 @@ export default function ClientHelpPage() {
 
           {/* FAQ List */}
           <div className="space-y-3">
-            {filteredFAQs.map((faq, index) => (
+            {paginatedFAQs.map((faq, index) => {
+              const realIndex = (currentPage - 1) * itemsPerPage + index;
+              return (
               <div
-                key={index}
+                key={realIndex}
                 className="border border-gray-200 rounded-lg overflow-hidden"
               >
                 <button
-                  onClick={() => toggleFAQ(index)}
+                  onClick={() => toggleFAQ(realIndex)}
                   className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
                 >
                   <div className="flex-1">
@@ -205,20 +216,26 @@ export default function ClientHelpPage() {
                     </span>
                     <span className="font-semibold text-gray-900">{faq.question}</span>
                   </div>
-                  {openFAQ === index ? (
+                  {openFAQ === realIndex ? (
                     <ChevronUp className="text-gray-400 flex-shrink-0 ml-4" size={20} />
                   ) : (
                     <ChevronDown className="text-gray-400 flex-shrink-0 ml-4" size={20} />
                   )}
                 </button>
-                {openFAQ === index && (
+                {openFAQ === realIndex && (
                   <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                     <p className="text-gray-700 leading-relaxed">{faq.answer}</p>
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
 
           {filteredFAQs.length === 0 && (
             <div className="text-center py-12">

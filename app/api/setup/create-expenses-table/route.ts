@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { verifyAuth } from '@/lib/middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request);
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     // Create expenses table
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS expenses (

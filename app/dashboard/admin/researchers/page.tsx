@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Edit, Eye, Mail, Award, Briefcase, Star, ArrowLeft } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
 
 interface Researcher {
   id: number;
@@ -27,6 +28,8 @@ export default function AdminResearchersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -48,7 +51,17 @@ export default function AdminResearchersPage() {
       r.specialization?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredResearchers(filtered);
+    setCurrentPage(1);
   }, [searchTerm, researchers]);
+
+  const sortedResearchers = [...filteredResearchers].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedResearchers.length / itemsPerPage));
+  const paginatedResearchers = sortedResearchers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const fetchResearchers = async () => {
     try {
@@ -273,7 +286,7 @@ export default function AdminResearchersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredResearchers.map((researcher) => (
+                {paginatedResearchers.map((researcher) => (
                   <tr key={researcher.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -346,7 +359,17 @@ export default function AdminResearchersPage() {
             </table>
           </div>
 
-          {filteredResearchers.length === 0 && (
+          {sortedResearchers.length > 0 && (
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={sortedResearchers.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
+
+          {sortedResearchers.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">No researchers found</p>
             </div>

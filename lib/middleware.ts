@@ -2,12 +2,17 @@ import { NextRequest } from 'next/server';
 import { verify } from 'jsonwebtoken';
 import { getUserById } from './auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. The application cannot start without it.');
+}
+const AUTH_CACHE_TTL_MS = 10 * 60_000;
+const activeUserCache = new Map<number, number>();
 
 export interface AuthUser {
   userId: number;
   email: string;
-  role: 'admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher';
+  role: 'admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher' | 'census';
 }
 
 export async function verifyAuth(request: NextRequest): Promise<AuthUser | null> {
@@ -22,38 +27,51 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
       }
     }
     
-    console.log('verifyAuth - Token source:', token ? (request.cookies.get('auth-token') ? 'cookie' : 'header') : 'none');
-    console.log('verifyAuth - Token present:', !!token);
-
     if (!token) {
-      console.log('verifyAuth - No token found in cookie or header');
       return null;
     }
 
     const decoded = verify(token, JWT_SECRET) as AuthUser;
-    console.log('verifyAuth - Token decoded for user:', decoded.email);
-    
-    // Verify user still exists and is active
-    const user = await getUserById(decoded.userId);
+    const normalizedUserId = Number((decoded as { userId?: unknown }).userId);
+    if (!Number.isFinite(normalizedUserId) || normalizedUserId <= 0) {
+      return null;
+    }
+    const normalizedDecoded: AuthUser = {
+      ...decoded,
+      userId: normalizedUserId,
+    };
+    const cacheUntil = activeUserCache.get(normalizedUserId);
+    if (cacheUntil && cacheUntil > Date.now()) {
+      return normalizedDecoded;
+    }
+
+    const user = await getUserById(normalizedDecoded.userId);
     if (!user) {
-      console.log('verifyAuth - User not found');
+      activeUserCache.delete(normalizedUserId);
       return null;
     }
     
     if (user.status !== 'active') {
-      console.log(`verifyAuth - User account is ${user.status}, not active. Denying access.`);
+      activeUserCache.delete(normalizedUserId);
       return null;
     }
 
-    console.log('verifyAuth - Success for user:', user.email, 'role:', user.role);
-    return decoded;
+    // Use the role from DB (not the JWT) so role changes take effect immediately
+    const freshUser: AuthUser = {
+      userId: normalizedUserId,
+      email: user.email,
+      role: user.role,
+    };
+
+    activeUserCache.set(normalizedUserId, Date.now() + AUTH_CACHE_TTL_MS);
+    return freshUser;
   } catch (error) {
     console.log('verifyAuth - Error:', error);
     return null;
   }
 }
 
-export function requireAuth(allowedRoles?: ('admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher')[]) {
+export function requireAuth(allowedRoles?: ('admin' | 'management' | 'client' | 'accountant' | 'consultant' | 'researcher' | 'census')[]) {
   return async (request: NextRequest) => {
     const user = await verifyAuth(request);
 

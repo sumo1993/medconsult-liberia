@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, MapPin, Database, FileText, Download, CheckCircle, Clock, XCircle, Eye, X, Image } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import Toast from '@/components/Toast';
 
 interface Submission {
   id: number;
@@ -29,6 +30,7 @@ export default function SubmissionDetailPage() {
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [fileData, setFileData] = useState<string | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -94,7 +96,7 @@ export default function SubmissionDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching file:', error);
-      alert('Failed to load file');
+      setToast({ message: 'Failed to load file', type: 'error' });
     } finally {
       setLoadingFile(false);
     }
@@ -119,7 +121,7 @@ export default function SubmissionDetailPage() {
       }
     } catch (error) {
       console.error('Error downloading file:', error);
-      alert('Failed to download file');
+      setToast({ message: 'Failed to download file', type: 'error' });
     }
   };
 
@@ -149,6 +151,13 @@ export default function SubmissionDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -368,4 +377,3 @@ export default function SubmissionDetailPage() {
     </div>
   );
 }
-

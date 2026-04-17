@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Users, Mail, Phone, FileText, Calendar, Check, X, Eye, Clock } from 'lucide-react';
+import { ArrowLeft, Users, Mail, Phone, FileText, Calendar, Check, X, Eye, Clock, Loader2 } from 'lucide-react';
+import PaginationControls from '@/components/PaginationControls';
+import { useRoleRedirect } from '@/hooks/useRoleRedirect';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface Application {
   id: number;
@@ -24,6 +27,12 @@ interface Application {
 
 export default function TeamApplicationsPage() {
   const router = useRouter();
+  const { markCategorySeen } = useNotifications('admin');
+  const { isAuthorized, isLoading: authLoading } = useRoleRedirect(['admin', 'management']);
+
+  useEffect(() => {
+    markCategorySeen('teamApplications');
+  }, [markCategorySeen]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -31,7 +40,29 @@ export default function TeamApplicationsPage() {
   const [adminNotes, setAdminNotes] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const [showPdfViewer, setShowPdfViewer] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState('');
+  const resumeBlobRef = useRef<string | null>(null);
+  const [resumeViewerUrl, setResumeViewerUrl] = useState<string | null>(null);
+  const [resumeViewerIsPdf, setResumeViewerIsPdf] = useState(false);
+  const [resumeOpening, setResumeOpening] = useState(false);
+
+  const revokeResumeBlob = () => {
+    if (resumeBlobRef.current) {
+      URL.revokeObjectURL(resumeBlobRef.current);
+      resumeBlobRef.current = null;
+    }
+    setResumeViewerUrl(null);
+    setResumeViewerIsPdf(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (resumeBlobRef.current) {
+        URL.revokeObjectURL(resumeBlobRef.current);
+      }
+    };
+  }, []);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({
     show: false,
     message: '',
@@ -39,17 +70,29 @@ export default function TeamApplicationsPage() {
   });
 
   useEffect(() => {
+    if (authLoading || !isAuthorized) return;
     fetchApplications();
-  }, [filter]);
+  }, [filter, authLoading, isAuthorized]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, applications]);
+
+  const sortedApplications = [...applications].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedApplications.length / itemsPerPage));
+  const paginatedApplications = sortedApplications.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const fetchApplications = async () => {
     try {
+      setLoading(true);
       const url = filter === 'all' 
         ? '/api/team-applications' 
         : `/api/team-applications?status=${filter}`;
       
       console.log('Fetching applications from:', url);
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       console.log('Response status:', response.status);
       
       if (response.ok) {
@@ -88,6 +131,7 @@ export default function TeamApplicationsPage() {
       console.log('Updating application status to:', status);
       const response = await fetch('/api/team-applications', {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicationId: selectedApp.id,
@@ -137,6 +181,21 @@ export default function TeamApplicationsPage() {
       minute: '2-digit'
     });
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking access…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -204,7 +263,7 @@ export default function TeamApplicationsPage() {
 
         {/* Applications List */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {applications.length === 0 ? (
+          {sortedApplications.length === 0 ? (
             <div className="p-12 text-center">
               <Users className="mx-auto text-gray-400 mb-4" size={48} />
               <p className="text-xl font-semibold text-gray-900 mb-2">No applications yet</p>
@@ -227,7 +286,7 @@ export default function TeamApplicationsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {applications.map((app) => (
+                  {paginatedApplications.map((app) => (
                     <tr key={app.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
@@ -271,6 +330,13 @@ export default function TeamApplicationsPage() {
               </table>
             </div>
           )}
+        </div>
+        <div className="bg-white rounded-lg shadow-md mt-4 p-4">
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
 
@@ -334,36 +400,56 @@ export default function TeamApplicationsPage() {
                           <p className="font-semibold text-gray-900">{selectedApp.resume_filename}</p>
                           <p className="text-xs text-gray-500">View or download the resume file</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button
+                            type="button"
+                            disabled={resumeOpening}
                             onClick={async () => {
-                              // Check if file exists first
-                              const checkResponse = await fetch(`/uploads/resumes/${selectedApp.resume_filename}`, { method: 'HEAD' });
-                              if (checkResponse.ok) {
-                                setPdfUrl(`/uploads/resumes/${selectedApp.resume_filename}`);
+                              const name = selectedApp.resume_filename;
+                              if (!name) return;
+                              setResumeOpening(true);
+                              revokeResumeBlob();
+                              try {
+                                const res = await fetch(
+                                  `/api/download-resume/${encodeURIComponent(name)}?inline=1`,
+                                  { credentials: 'include' }
+                                );
+                                if (!res.ok) {
+                                  setToast({
+                                    show: true,
+                                    message:
+                                      res.status === 401
+                                        ? 'Please log in to view this file.'
+                                        : 'Resume file not found on the server.',
+                                    type: 'error',
+                                  });
+                                  setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+                                  return;
+                                }
+                                const blob = await res.blob();
+                                const url = URL.createObjectURL(blob);
+                                resumeBlobRef.current = url;
+                                setResumeViewerUrl(url);
+                                setResumeViewerIsPdf(
+                                  name.toLowerCase().endsWith('.pdf') ||
+                                    blob.type === 'application/pdf'
+                                );
                                 setShowPdfViewer(true);
-                              } else {
-                                setToast({ show: true, message: 'File not found on server. This application was submitted before file upload was implemented.', type: 'error' });
-                                setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+                              } finally {
+                                setResumeOpening(false);
                               }
                             }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center gap-2"
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center gap-2 disabled:opacity-60"
                           >
-                            <Eye size={16} /> View
+                            {resumeOpening ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Eye size={16} />
+                            )}{' '}
+                            View
                           </button>
                           <a
-                            href={`/api/download-resume/${selectedApp.resume_filename}`}
-                            download
-                            onClick={async (e) => {
-                              e.preventDefault();
-                              const checkResponse = await fetch(`/uploads/resumes/${selectedApp.resume_filename}`, { method: 'HEAD' });
-                              if (checkResponse.ok) {
-                                window.location.href = `/api/download-resume/${selectedApp.resume_filename}`;
-                              } else {
-                                setToast({ show: true, message: 'File not found on server. This application was submitted before file upload was implemented.', type: 'error' });
-                                setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
-                              }
-                            }}
+                            href={`/api/download-resume/${encodeURIComponent(selectedApp.resume_filename)}`}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm flex items-center gap-2"
                           >
                             <FileText size={16} /> Download
@@ -438,37 +524,35 @@ export default function TeamApplicationsPage() {
               <button 
                 onClick={() => {
                   setShowPdfViewer(false);
-                  setPdfUrl('');
+                  revokeResumeBlob();
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X size={24} />
               </button>
             </div>
-            <div className="flex-1 overflow-hidden">
-              {pdfUrl.toLowerCase().endsWith('.pdf') ? (
+            <div className="flex-1 overflow-hidden min-h-0">
+              {resumeViewerIsPdf && resumeViewerUrl ? (
                 <iframe
-                  src={pdfUrl}
-                  className="w-full h-full"
+                  src={resumeViewerUrl}
+                  className="w-full h-full min-h-[70vh] border-0"
                   title="Resume PDF Viewer"
-                  onError={(e) => {
-                    console.error('PDF load error');
-                  }}
                 />
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
+                <div className="flex items-center justify-center h-full min-h-[50vh]">
+                  <div className="text-center px-4">
                     <FileText className="mx-auto text-gray-400 mb-4" size={64} />
                     <p className="text-gray-600 mb-4">
-                      Preview not available for this file type.
+                      Inline preview works for PDF. For Word documents, use Download.
                     </p>
-                    <a
-                      href={`/api/download-resume/${pdfUrl.split('/').pop()}`}
-                      download
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold inline-flex items-center gap-2"
-                    >
-                      <FileText size={20} /> Download File
-                    </a>
+                    {selectedApp?.resume_filename && (
+                      <a
+                        href={`/api/download-resume/${encodeURIComponent(selectedApp.resume_filename)}`}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold inline-flex items-center gap-2"
+                      >
+                        <FileText size={20} /> Download File
+                      </a>
+                    )}
                   </div>
                 </div>
               )}

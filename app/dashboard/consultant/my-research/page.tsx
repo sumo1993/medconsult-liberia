@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, FileText, Eye, Edit, Trash2, Clock, CheckCircle, XCircle, Upload } from 'lucide-react';
 import Toast from '@/components/Toast';
+import PaginationControls from '@/components/PaginationControls';
 
 interface ResearchPaper {
   id: number;
@@ -37,6 +38,8 @@ export default function MyResearchPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchMyPapers();
@@ -217,6 +220,16 @@ export default function MyResearchPage() {
     }
   };
 
+  const sortedPapers = [...papers].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedPapers.length / itemsPerPage));
+  const paginatedPapers = sortedPapers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [papers]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -290,7 +303,7 @@ export default function MyResearchPage() {
         </div>
 
         {/* Papers List */}
-        {papers.length === 0 ? (
+        {sortedPapers.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <FileText className="mx-auto text-gray-400 mb-4" size={64} />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Research Papers Yet</h3>
@@ -305,7 +318,7 @@ export default function MyResearchPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {papers.map((paper) => (
+            {paginatedPapers.map((paper) => (
               <div key={paper.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -384,6 +397,13 @@ export default function MyResearchPage() {
               </div>
             ))}
           </div>
+        )}
+        {sortedPapers.length > 0 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
 
         {/* Create/Edit Modal */}

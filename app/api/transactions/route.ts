@@ -4,6 +4,60 @@ import { verifyAuth } from '@/lib/middleware';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
+const DEFAULT_TRANSACTION_TYPES = [
+  'consultation_fee',
+  'partnership_payment',
+  'grant',
+  'expense',
+  'refund',
+  'other'
+] as const;
+
+type TransactionType = typeof DEFAULT_TRANSACTION_TYPES[number];
+
+function parseEnumValues(columnType: string): string[] {
+  const matches = [...columnType.matchAll(/'([^']+)'/g)];
+  return matches.map((m) => m[1]);
+}
+
+// Ensure transaction_type enum contains all required app values (notably "grant")
+async function ensureTransactionTypeEnum() {
+  try {
+    const [rows]: any = await pool.execute(`
+      SELECT COLUMN_TYPE
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'transactions'
+      AND COLUMN_NAME = 'transaction_type'
+      LIMIT 1
+    `);
+
+    const columnType = rows?.[0]?.COLUMN_TYPE as string | undefined;
+    if (!columnType) return;
+
+    const existing = parseEnumValues(columnType);
+    const merged = Array.from(new Set([...existing, ...DEFAULT_TRANSACTION_TYPES]));
+    const missingAny = DEFAULT_TRANSACTION_TYPES.some((v) => !existing.includes(v));
+
+    if (missingAny) {
+      const enumList = merged.map((v) => `'${v}'`).join(', ');
+      await pool.execute(`
+        ALTER TABLE transactions
+        MODIFY COLUMN transaction_type ENUM(${enumList}) NOT NULL
+      `);
+      console.log('✅ transactions.transaction_type enum updated:', merged);
+    }
+  } catch (error) {
+    console.error('Error ensuring transaction_type enum:', error);
+  }
+}
+
+function normalizeTransactionType(value: unknown): TransactionType | null {
+  if (typeof value !== 'string') return null;
+  if (DEFAULT_TRANSACTION_TYPES.includes(value as TransactionType)) return value as TransactionType;
+  return null;
+}
+
 // Ensure receipt_photo column exists
 async function ensureReceiptColumn() {
   try {
@@ -120,6 +174,7 @@ export async function GET(request: NextRequest) {
 // POST create new transaction
 export async function POST(request: NextRequest) {
   try {
+    await ensureTransactionTypeEnum(); // Ensure transaction_type enum supports current app values
     await ensureReceiptColumn(); // Ensure column exists
     await ensureFeeBreakdownColumns(); // Ensure fee breakdown columns exist
     
@@ -148,6 +203,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const normalizedType = normalizeTransactionType(transaction_type);
+    if (!normalizedType) {
+      return NextResponse.json({ error: `Invalid transaction type: ${transaction_type}` }, { status: 400 });
+    }
+
     // Handle photo upload if provided
     let receiptPath = null;
     if (receipt_photo && receipt_photo.startsWith('data:image')) {
@@ -173,14 +233,14 @@ export async function POST(request: NextRequest) {
         partnership_id, payment_method, payment_status, transaction_date, created_by, receipt_photo)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        transaction_type, 
+        normalizedType,
         amount, 
         currency, 
         description || null, 
         consultant_id || null, 
         client_id || null,
         partnership_id || null, 
-        payment_method, 
+        payment_method || 'bank_transfer', 
         payment_status, 
         transaction_date || new Date(), 
         user.userId, 
@@ -189,7 +249,7 @@ export async function POST(request: NextRequest) {
     );
 
     // If it's a consultation fee, create consultant earning
-    if (transaction_type === 'consultation_fee' && consultant_id) {
+    if (normalizedType === 'consultation_fee' && consultant_id) {
       // Commission breakdown:
       // For consultation fees, calculate commission breakdown
       const consultantRate = 75; // 75% to consultant
@@ -223,7 +283,7 @@ export async function POST(request: NextRequest) {
     
     // If distribute_to_team is checked for non-consultation transactions
     // Partnership distribution: CEO 40%, IT 25%, Accountant 15%, Others 15%, Website 5%
-    if (distribute_to_team && transaction_type !== 'consultation_fee') {
+    if (distribute_to_team && normalizedType !== 'consultation_fee') {
       const ceoRate = 40;
       const itRate = 25;
       const accountantRate = 15;
