@@ -1,5 +1,6 @@
 /**
  * Rasterize public/medconsult-favicon.svg into PNG + favicon.ico for broad browser support.
+ * Writes both public/ and app/favicon.ico — Next.js prefers app/favicon.ico over public/.
  * Run: node scripts/generate-favicons.mjs
  */
 import { writeFile } from 'fs/promises';
@@ -12,6 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const svgPath = path.join(root, 'public', 'medconsult-favicon.svg');
 const publicDir = path.join(root, 'public');
+const appDir = path.join(root, 'app');
 
 async function main() {
   const buf16 = await sharp(svgPath).resize(16, 16).png({ compressionLevel: 9 }).toBuffer();
@@ -26,8 +28,11 @@ async function main() {
 
   const ico = await toIco([buf16, buf32, buf48]);
   await writeFile(path.join(publicDir, 'favicon.ico'), ico);
+  await writeFile(path.join(appDir, 'favicon.ico'), ico);
 
-  console.log('Wrote public/favicon.ico, favicon-16x16.png, favicon-32x32.png, favicon-48x48.png, apple-touch-icon.png');
+  console.log(
+    'Wrote app/favicon.ico, public/favicon.ico, favicon-16x16.png, favicon-32x32.png, favicon-48x48.png, apple-touch-icon.png'
+  );
 }
 
 main().catch((e) => {
