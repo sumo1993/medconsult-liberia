@@ -63,7 +63,7 @@ export default function AboutPage() {
                   <Target className="text-emerald-600" size={32} />
                   <h2 className="text-2xl font-bold text-gray-900">Our Mission</h2>
                 </div>
-                <p className="text-gray-700 leading-relaxed" style={{ textAlign: 'justify' }}>
+                <p className="text-left text-gray-700 leading-relaxed md:text-justify">
                   To provide accessible, high-quality medical consultation services to individuals and 
                   organizations across Liberia, bridging the gap between healthcare needs and expert 
                   medical guidance through innovative digital solutions.
@@ -75,7 +75,7 @@ export default function AboutPage() {
                   <Globe className="text-emerald-600" size={32} />
                   <h2 className="text-2xl font-bold text-gray-900">Our Vision</h2>
                 </div>
-                <p className="text-gray-700 leading-relaxed" style={{ textAlign: 'justify' }}>
+                <p className="text-left text-gray-700 leading-relaxed md:text-justify">
                   To become Liberia's leading medical consultation platform, recognized for excellence 
                   in healthcare delivery, research contribution, and positive impact on public health 
                   outcomes across the nation.
@@ -129,17 +129,17 @@ export default function AboutPage() {
             <div className="max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Story</h2>
               <div className="prose prose-lg text-gray-700 mx-auto">
-                <p className="mb-4" style={{ textAlign: 'justify' }}>
+                <p className="mb-4 text-left md:text-justify">
                   MedConsult Liberia was founded with a simple yet powerful vision: to make quality 
                   medical consultation accessible to everyone in Liberia, regardless of their location 
                   or circumstances.
                 </p>
-                <p className="mb-4" style={{ textAlign: 'justify' }}>
+                <p className="mb-4 text-left md:text-justify">
                   Starting as a small practice in Monrovia, we recognized the challenges many Liberians 
                   face in accessing expert medical advice. Through dedication and innovation, we've grown 
                   into a trusted platform connecting clients with experienced medical consultants.
                 </p>
-                <p style={{ textAlign: 'justify' }}>
+                <p className="text-left md:text-justify">
                   Today, we serve hundreds of clients across Liberia, providing consultations, research 
                   support, and healthcare guidance. Our digital platform has made it easier than ever to 
                   get the medical expertise you need, when you need it.
@@ -217,7 +217,7 @@ export default function AboutPage() {
                       )}
 
                       {member.bio && (
-                        <p className="text-gray-700 text-sm mb-4 leading-relaxed" style={{ textAlign: 'justify' }}>
+                        <p className="mb-4 text-left text-sm leading-relaxed text-gray-700 md:text-justify">
                           {member.bio}
                         </p>
                       )}

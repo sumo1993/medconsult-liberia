@@ -25,7 +25,7 @@ const clinicalServices: {
   },
   {
     icon: Heart,
-    title: 'Chronic Disease Management',
+    title: 'Chronic Diseases',
     description:
       'Specialized care for hypertension, diabetes, and other chronic conditions common in Liberia.',
   },
