@@ -940,6 +940,16 @@ export default function AccountantDashboard() {
             </div>
             
             <div className="flex items-center gap-3 sm:gap-4">
+              {/* Direct Messages */}
+              <button
+                onClick={() => router.push('/dashboard/accountant/direct-messages')}
+                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Direct Messages"
+                aria-label="Direct Messages"
+              >
+                <MessageSquare size={24} className="text-gray-600" />
+              </button>
+
               {/* Notification Bell */}
               <button
                 onClick={() => {

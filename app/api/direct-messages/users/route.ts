@@ -51,11 +51,11 @@ export async function GET(request: NextRequest) {
       `;
       params = [user.userId];
     } else if (user.role === 'accountant') {
-      // Accountants can message admin/researcher/accountants
+      // Accountants can message admin, management (CEO), and other accountants
       query = `
         SELECT id, full_name, email, role
         FROM users
-        WHERE id != ? AND status = 'active' AND role IN ('admin', 'researcher', 'accountant')
+        WHERE id != ? AND status = 'active' AND role IN ('admin', 'management', 'accountant')
         ORDER BY role, full_name ASC
       `;
       params = [user.userId];
