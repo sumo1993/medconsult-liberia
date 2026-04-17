@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { POST_LOGIN_GATE_KEY } from '@/components/PostLoginNotificationGate';
 
 // Generate random CAPTCHA
 const generateCaptcha = () => {
@@ -116,6 +117,14 @@ export default function LoginPage() {
         }
 
         const role = data.user?.role as string | undefined;
+        try {
+          const gatedRoles = ['admin', 'management', 'consultant', 'researcher', 'accountant'];
+          if (role && gatedRoles.includes(role)) {
+            sessionStorage.setItem(POST_LOGIN_GATE_KEY, '1');
+          }
+        } catch {
+          /* ignore */
+        }
         const path =
           role === 'admin'
             ? '/dashboard/admin'

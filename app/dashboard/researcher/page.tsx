@@ -16,6 +16,7 @@ import OnlineStatusIndicator from '@/components/OnlineStatusIndicator';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
+import PostLoginNotificationGate from '@/components/PostLoginNotificationGate';
 
 interface ResearchProject {
   id: number;
@@ -39,7 +40,7 @@ interface DataSubmission {
 export default function ResearcherDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('researcher');
-  const { counts } = useNotifications('researcher');
+  const { counts, loading: notifLoading } = useNotifications('researcher');
   
   const [stats, setStats] = useState({
     activeProjects: 0,
@@ -259,6 +260,8 @@ export default function ResearcherDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
+      <PostLoginNotificationGate role="researcher" loading={notifLoading} counts={counts} />
+
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">

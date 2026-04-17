@@ -13,11 +13,12 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
+import PostLoginNotificationGate from '@/components/PostLoginNotificationGate';
 
 export default function ConsultantDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('consultant');
-  const { counts, refresh, markCategorySeen } = useNotifications('consultant');
+  const { counts, refresh, markCategorySeen, loading: notifLoading } = useNotifications('consultant');
   
   const [stats, setStats] = useState({
     totalAssignments: 0,
@@ -336,6 +337,8 @@ export default function ConsultantDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <PostLoginNotificationGate role="consultant" loading={notifLoading} counts={counts} />
+
       {/* Mobile-Optimized Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">

@@ -12,11 +12,12 @@ import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useNotifications } from '@/hooks/useNotifications';
+import PostLoginNotificationGate from '@/components/PostLoginNotificationGate';
 
 export default function AccountantDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('accountant');
-  const { counts: notifCounts, rawCounts: notifRawCounts, markCategorySeen: markNotifSeen } = useNotifications('accountant');
+  const { counts: notifCounts, markCategorySeen: markNotifSeen, loading: notifLoading } = useNotifications('accountant');
   const [dmToast, setDmToast] = useState<{ visible: boolean; count: number }>({ visible: false, count: 0 });
   const prevDmCountRef = useRef(0);
   const [activeTab, setActiveTab] = useState('overview');
@@ -960,6 +961,8 @@ export default function AccountantDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8">
+      <PostLoginNotificationGate role="accountant" loading={notifLoading} counts={notifCounts} />
+
       {/* DM toast notification */}
       {dmToast.visible && (
         <div className="fixed top-5 right-5 z-[9999] flex items-start gap-3 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 shadow-2xl max-w-sm animate-bounce-once">

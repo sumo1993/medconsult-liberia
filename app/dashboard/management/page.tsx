@@ -14,11 +14,12 @@ import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import CensusReportsAccessPanel from '@/components/CensusReportsAccessPanel';
+import PostLoginNotificationGate from '@/components/PostLoginNotificationGate';
 
 export default function ManagementDashboardEnhanced() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('management');
-  const { counts, rawCounts, refresh, markCategorySeen } = useNotifications('management');
+  const { counts, rawCounts, refresh, markCategorySeen, loading: notifLoading } = useNotifications('management');
   
   const [stats, setStats] = useState({
     totalAssignments: 0,
@@ -472,6 +473,8 @@ export default function ManagementDashboardEnhanced() {
           </div>
         </div>
       )}
+
+      <PostLoginNotificationGate role="management" loading={notifLoading} counts={counts} />
 
       {/* Mobile-Optimized Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">

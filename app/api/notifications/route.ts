@@ -6,7 +6,7 @@ import { ensureCensusFieldApplicationsTable } from '@/lib/ensure-census-field-ap
 
 type CountRow = RowDataPacket & { count: number };
 
-const STAFF_ROLES = new Set(['admin', 'management', 'consultant', 'researcher']);
+const STAFF_ROLES = new Set(['admin', 'management', 'consultant', 'researcher', 'accountant']);
 
 async function safeCount(sql: string, params: unknown[] = []): Promise<number> {
   try {

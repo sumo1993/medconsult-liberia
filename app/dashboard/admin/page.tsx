@@ -11,6 +11,7 @@ import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import CensusReportsAccessPanel from '@/components/CensusReportsAccessPanel';
 import CensusFieldAccessAdminPanel from '@/components/CensusFieldAccessAdminPanel';
+import PostLoginNotificationGate from '@/components/PostLoginNotificationGate';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -262,6 +263,8 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      <PostLoginNotificationGate role="admin" loading={notifLoading} counts={counts} />
 
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
