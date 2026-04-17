@@ -11,38 +11,37 @@ export async function PUT(request: NextRequest) {
 
     const data = await request.json();
 
-    // All possible profile columns (built from migrations + auth.ts schema)
-    // We try the full update first; if a column is missing Postgres throws code 42703
-    // and we fall back to core-only fields.
+    // Use || null so empty strings ("") become null — important for DATE and INT columns
+    // (Postgres throws a type error if "" is inserted into date_of_birth or years_of_experience)
     const fullFields: Record<string, unknown> = {
-      full_name:                        data.full_name                        ?? null,
-      email:                            data.email                            ?? null,
-      title:                            data.title                            ?? null,
-      date_of_birth:                    data.date_of_birth                    ?? null,
-      gender:                           data.gender                           ?? null,
-      city:                             data.city                             ?? null,
-      county:                           data.county                           ?? null,
-      country:                          data.country                          ?? null,
-      educational_level:                data.educational_level                ?? null,
-      marital_status:                   data.marital_status                   ?? null,
-      employment_status:                data.employment_status                ?? null,
-      occupation:                       data.occupation                       ?? null,
-      phone_number:                     data.phone_number                     ?? null,
-      emergency_contact_name:           data.emergency_contact_name           ?? null,
-      emergency_contact_phone:          data.emergency_contact_phone          ?? null,
-      emergency_contact_relationship:   data.emergency_contact_relationship   ?? null,
-      specialization:                   data.specialization                   ?? null,
-      years_of_experience:              data.years_of_experience              ?? null,
-      license_number:                   data.license_number                   ?? null,
-      research_interests:               data.research_interests               ?? null,
-      current_projects:                 data.current_projects                 ?? null,
-      bio:                              data.bio                              ?? null,
+      full_name:                        data.full_name                        || null,
+      email:                            data.email                            || null,
+      title:                            data.title                            || null,
+      date_of_birth:                    data.date_of_birth                    || null,
+      gender:                           data.gender                           || null,
+      city:                             data.city                             || null,
+      county:                           data.county                           || null,
+      country:                          data.country                          || null,
+      educational_level:                data.educational_level                || null,
+      marital_status:                   data.marital_status                   || null,
+      employment_status:                data.employment_status                || null,
+      occupation:                       data.occupation                       || null,
+      phone_number:                     data.phone_number                     || null,
+      emergency_contact_name:           data.emergency_contact_name           || null,
+      emergency_contact_phone:          data.emergency_contact_phone          || null,
+      emergency_contact_relationship:   data.emergency_contact_relationship   || null,
+      specialization:                   data.specialization                   || null,
+      years_of_experience:              data.years_of_experience              || null,
+      license_number:                   data.license_number                   || null,
+      research_interests:               data.research_interests               || null,
+      current_projects:                 data.current_projects                 || null,
+      bio:                              data.bio                              || null,
     };
 
     // Core fields that always exist (from auth.ts createUser)
     const coreFields: Record<string, unknown> = {
-      full_name:    data.full_name    ?? null,
-      bio:          data.bio          ?? null,
+      full_name:    data.full_name    || null,
+      bio:          data.bio          || null,
     };
 
     const buildUpdate = (fields: Record<string, unknown>) => {
@@ -61,15 +60,19 @@ export async function PUT(request: NextRequest) {
       const errCode = (fullErr as { code?: string })?.code;
       const errMsg  = String((fullErr as { message?: string })?.message || '').toLowerCase();
 
-      // 42703 = column does not exist (Postgres); fallback to safe subset
-      const isMissingColumn =
+      // 42703 = column does not exist; 22P02 = invalid input syntax (e.g. "" for INT/DATE)
+      // For both, fall back to a smaller field set rather than crashing
+      const isRecoverable =
         errCode === '42703' ||
+        errCode === '22P02' ||
         errMsg.includes('column') ||
         errMsg.includes('does not exist') ||
-        errMsg.includes('unknown column');
+        errMsg.includes('unknown column') ||
+        errMsg.includes('invalid input syntax') ||
+        errMsg.includes('invalid value');
 
-      if (!isMissingColumn) {
-        throw fullErr; // unexpected error — re-throw to outer catch
+      if (!isRecoverable) {
+        throw fullErr; // truly unexpected — re-throw to outer catch
       }
 
       console.warn('[Profile Update] Some columns missing, retrying with core fields:', errMsg);
