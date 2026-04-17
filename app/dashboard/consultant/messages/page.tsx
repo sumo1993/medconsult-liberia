@@ -111,9 +111,10 @@ export default function ConsultantMessagesPage() {
     const el = composerRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    const nextHeight = Math.min(el.scrollHeight, 160);
+    const cap = typeof window !== 'undefined' && window.innerWidth < 768 ? 224 : 160;
+    const nextHeight = Math.min(el.scrollHeight, cap);
     el.style.height = `${Math.max(nextHeight, 44)}px`;
-    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden';
+    el.style.overflowY = el.scrollHeight > cap ? 'auto' : 'hidden';
   };
 
   const fetchCurrentUser = async () => {
@@ -379,9 +380,9 @@ export default function ConsultantMessagesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-gray-50 max-md:h-dvh max-md:max-h-dvh max-md:overflow-hidden">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="shrink-0 bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center space-x-3 sm:space-x-4">
@@ -407,8 +408,8 @@ export default function ConsultantMessagesPage() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-2 py-3 sm:px-6 sm:py-6 lg:px-8">
-        <div className="flex h-[calc(100dvh-12.5rem)] min-h-[280px] flex-col overflow-hidden rounded-lg bg-white shadow sm:h-[calc(100dvh-11rem)] md:h-[calc(100vh-200px)] md:min-h-[400px] md:flex-row">
+      <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-2 py-3 sm:px-6 sm:py-6 lg:px-8">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-white shadow md:h-[calc(100vh-200px)] md:min-h-[400px] md:flex-row">
             {/* Conversations List */}
             <div
               className={`flex h-full min-h-0 w-full shrink-0 flex-col border-r border-gray-200 md:w-[min(100%,380px)] md:max-w-[40%] ${
@@ -469,7 +470,7 @@ export default function ConsultantMessagesPage() {
 
             {/* Chat Area */}
             <div
-              className={`flex min-h-0 min-w-0 flex-1 flex-col ${selectedUser ? 'flex' : 'hidden md:flex'}`}
+              className={`flex h-full min-h-0 min-w-0 flex-1 flex-col ${selectedUser ? 'flex' : 'hidden md:flex'}`}
             >
               {selectedUser ? (
                 <>
@@ -498,9 +499,9 @@ export default function ConsultantMessagesPage() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-4 bg-gray-50">
                     {messages.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-gray-500">
+                      <div className="flex flex-col items-center justify-center py-16 text-gray-500">
                         <div className="text-center">
                           <MessageSquare className="mx-auto mb-3 text-gray-300" size={48} />
                           <p>No messages yet. Start the conversation!</p>
@@ -638,7 +639,7 @@ export default function ConsultantMessagesPage() {
                   </div>
 
                   {/* Message Input */}
-                  <div className="p-4 border-t bg-white">
+                  <div className="shrink-0 border-t bg-white px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     {replyTo && (
                       <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900 flex items-center justify-between">
                         <div className="truncate">
@@ -719,7 +720,7 @@ export default function ConsultantMessagesPage() {
                         }}
                         placeholder="Type a message..."
                         rows={1}
-                        className="flex-1 max-h-40 overflow-y-auto rounded-2xl border border-gray-300 px-4 py-2 leading-6 focus:border-gray-400 focus:outline-none focus:ring-0 resize-none"
+                        className="flex-1 max-h-56 overflow-y-auto rounded-2xl border border-gray-300 px-4 py-2 leading-6 focus:border-gray-400 focus:outline-none focus:ring-0 resize-none md:max-h-40"
                       />
                       <button
                         onClick={handleSendMessage}
