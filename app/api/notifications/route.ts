@@ -42,7 +42,17 @@ export async function GET(request: NextRequest) {
 
     const promises: Promise<void>[] = [];
 
-    // Staff-only: applications, DMs, research approval queue
+    // Unread direct messages — counted for every authenticated role
+    promises.push(
+      safeCount(
+        `SELECT COUNT(*) AS count FROM direct_messages WHERE receiver_id = ? AND COALESCE(is_read, FALSE) = FALSE`,
+        [userId]
+      ).then((n) => {
+        counts.directMessagesUnread = n;
+      })
+    );
+
+    // Admin / management only: applications, research approval queue
     if (role === 'admin' || role === 'management') {
       promises.push(
         safeCount(
@@ -63,14 +73,6 @@ export async function GET(request: NextRequest) {
             counts.censusFieldApplications = 0;
           }
         })()
-      );
-      promises.push(
-        safeCount(
-          `SELECT COUNT(*) AS count FROM direct_messages WHERE receiver_id = ? AND COALESCE(is_read, FALSE) = FALSE`,
-          [userId]
-        ).then((n) => {
-          counts.directMessagesUnread = n;
-        })
       );
       promises.push(
         safeCount(`SELECT COUNT(*) AS count FROM research_posts WHERE status = 'pending'`).then((n) => {

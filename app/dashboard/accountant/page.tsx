@@ -1,19 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { DollarSign, TrendingUp, TrendingDown, Users, Calendar, Plus, Download, Check, ArrowLeft, X, Save, Edit2, Trash2, Eye, Upload, EyeOff, FileText, Lock, Bell, MessageSquare, User, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import NotificationBadge from '@/components/NotificationBadge';
 import PaginationControls from '@/components/PaginationControls';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import { useSessionValidation } from '@/hooks/useSessionValidation';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
+import { useNotifications } from '@/hooks/useNotifications';
 
 export default function AccountantDashboard() {
   const router = useRouter();
   const { isAuthorized, isLoading: roleLoading } = useRoleRedirect('accountant');
+  const { counts: notifCounts, rawCounts: notifRawCounts, markCategorySeen: markNotifSeen } = useNotifications('accountant');
+  const [dmToast, setDmToast] = useState<{ visible: boolean; count: number }>({ visible: false, count: 0 });
+  const prevDmCountRef = useRef(0);
   const [activeTab, setActiveTab] = useState('overview');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [earnings, setEarnings] = useState<any[]>([]);
@@ -83,6 +88,30 @@ export default function AccountantDashboard() {
 
   useSessionValidation();
   useAccountStatus();
+
+  // Detect new unread DMs and show a toast + browser notification
+  useEffect(() => {
+    const current = notifCounts.directMessagesUnread;
+    const prev = prevDmCountRef.current;
+    if (current > prev && prev !== -1) {
+      setDmToast({ visible: true, count: current });
+      // Auto-dismiss after 8 seconds
+      const timer = setTimeout(() => setDmToast((t) => ({ ...t, visible: false })), 8000);
+      // Browser notification (if permission granted)
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification('New Direct Message', {
+            body: `You have ${current} unread message${current > 1 ? 's' : ''}. Open Direct Messages to read.`,
+            icon: '/favicon.ico',
+          });
+        } else if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+      return () => clearTimeout(timer);
+    }
+    prevDmCountRef.current = current;
+  }, [notifCounts.directMessagesUnread]);
 
   const pendingPaymentsBadgeCount = Math.max(0, (stats.pendingPayments || 0) - pendingPaymentsSeen);
 
@@ -931,6 +960,37 @@ export default function AccountantDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8">
+      {/* DM toast notification */}
+      {dmToast.visible && (
+        <div className="fixed top-5 right-5 z-[9999] flex items-start gap-3 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 shadow-2xl max-w-sm animate-bounce-once">
+          <MessageSquare size={20} className="mt-0.5 flex-shrink-0 text-yellow-600" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-yellow-900">New Direct Message</p>
+            <p className="text-xs text-yellow-700 mt-0.5">
+              You have <strong>{dmToast.count}</strong> unread message{dmToast.count > 1 ? 's' : ''}.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setDmToast({ visible: false, count: 0 });
+                markNotifSeen('directMessagesUnread');
+                router.push('/dashboard/accountant/direct-messages');
+              }}
+              className="rounded-lg bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700"
+            >
+              View
+            </button>
+            <button
+              onClick={() => setDmToast({ visible: false, count: 0 })}
+              className="text-yellow-600 hover:text-yellow-900"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 sm:mb-8">
           <div className="flex items-center justify-between gap-4">
@@ -942,12 +1002,20 @@ export default function AccountantDashboard() {
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Direct Messages */}
               <button
-                onClick={() => router.push('/dashboard/accountant/direct-messages')}
+                onClick={() => {
+                  markNotifSeen('directMessagesUnread');
+                  router.push('/dashboard/accountant/direct-messages');
+                }}
                 className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
                 title="Direct Messages"
                 aria-label="Direct Messages"
               >
-                <MessageSquare size={24} className="text-gray-600" />
+                <MessageSquare size={24} className={notifCounts.directMessagesUnread > 0 ? 'text-yellow-600' : 'text-gray-600'} />
+                {notifCounts.directMessagesUnread > 0 && (
+                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {Math.min(notifCounts.directMessagesUnread, 99)}
+                  </span>
+                )}
               </button>
 
               {/* Notification Bell */}

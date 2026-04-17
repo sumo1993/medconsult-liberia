@@ -19,7 +19,7 @@ interface NotificationCounts {
 
 type NotificationKey = keyof NotificationCounts;
 
-export function useNotifications(role: 'admin' | 'management' | 'client' | 'consultant' | 'researcher' | 'census') {
+export function useNotifications(role: 'admin' | 'management' | 'client' | 'consultant' | 'researcher' | 'census' | 'accountant') {
   const storageKey = `notif_seen_snapshot_${role}`;
   const [rawCounts, setRawCounts] = useState<NotificationCounts>({
     messages: 0,

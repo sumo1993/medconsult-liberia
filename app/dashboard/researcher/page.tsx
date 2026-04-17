@@ -59,7 +59,7 @@ export default function ResearcherDashboard() {
   const [activeProjects, setActiveProjects] = useState<ResearchProject[]>([]);
   const [recentSubmissions, setRecentSubmissions] = useState<DataSubmission[]>([]);
 
-  const totalNotifications = counts.assignments + counts.researchPosts + counts.donationInquiries;
+  const totalNotifications = counts.assignments + counts.researchPosts + counts.donationInquiries + counts.directMessagesUnread;
 
   useSessionValidation();
   useAccountStatus();

@@ -61,7 +61,8 @@ export default function ConsultantDashboard() {
     counts.unreadAssignmentMessages +
     counts.assignments +
     counts.appointments +
-    counts.messages;
+    counts.messages +
+    counts.directMessagesUnread;
   
   const consultantNotifications = [
     counts.unreadAssignmentMessages > 0
@@ -99,6 +100,16 @@ export default function ConsultantDashboard() {
           id: 'general-messages',
           title: 'General Messages',
           message: `${counts.messages} general message${counts.messages > 1 ? 's' : ''} available.`,
+          link: '/dashboard/consultant/messages',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        }
+      : null,
+    counts.directMessagesUnread > 0
+      ? {
+          id: 'direct-messages-unread',
+          title: 'New Direct Messages',
+          message: `You have ${counts.directMessagesUnread} unread direct message${counts.directMessagesUnread > 1 ? 's' : ''}.`,
           link: '/dashboard/consultant/messages',
           is_read: false,
           created_at: new Date().toISOString(),
@@ -781,9 +792,9 @@ export default function ConsultantDashboard() {
               onClick={() => router.push('/dashboard/consultant/messages')}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 sm:p-6 hover:shadow-lg hover:border-emerald-500 transition-all cursor-pointer relative"
             >
-              {counts.messages > 0 && (
+              {counts.directMessagesUnread > 0 && (
                 <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-                  <NotificationBadge count={counts.messages} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
+                  <NotificationBadge count={counts.directMessagesUnread} className="text-xs sm:text-base px-2 sm:px-3 py-0.5 sm:py-1" />
                 </div>
               )}
               <div className="bg-indigo-500 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center mb-2 sm:mb-4">
