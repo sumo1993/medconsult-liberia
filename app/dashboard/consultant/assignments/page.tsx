@@ -247,28 +247,45 @@ export default function ConsultantAssignmentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Toast Notification */}
+      {/* Toast — refined card (readable on any screen) */}
       {notification && (
-        <div className="fixed top-4 right-4 z-[9999]">
-          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl min-w-[300px] max-w-sm ${
-            notification.type === 'success'
-              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600'
-              : 'bg-gradient-to-r from-red-500 to-red-600'
-          } text-white`}>
-            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
-              {notification.type === 'success'
-                ? <CheckCircle size={20} className="text-white" />
-                : <XCircle size={20} className="text-white" />}
+        <div
+          className="fixed z-[9999] left-4 right-4 top-20 sm:top-6 sm:left-auto sm:right-6 sm:max-w-md pointer-events-auto"
+          role="alert"
+        >
+          <div
+            className={`flex items-start gap-3 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] ring-1 ring-black/[0.06] border-l-[5px] ${
+              notification.type === 'success' ? 'border-l-emerald-500' : 'border-l-red-500'
+            }`}
+          >
+            <div
+              className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
+                notification.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-600'
+                  : 'bg-red-50 text-red-600'
+              }`}
+            >
+              {notification.type === 'success' ? (
+                <CheckCircle size={22} strokeWidth={2.25} />
+              ) : (
+                <XCircle size={22} strokeWidth={2.25} />
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">
-                {notification.type === 'success' ? 'Success' : 'Error'}
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p
+                className={`text-sm font-semibold tracking-tight ${
+                  notification.type === 'success' ? 'text-emerald-900' : 'text-red-900'
+                }`}
+              >
+                {notification.type === 'success' ? 'All set' : 'Something went wrong'}
               </p>
-              <p className="text-xs text-white/90 mt-0.5 leading-relaxed">{notification.message}</p>
+              <p className="mt-1 text-sm leading-snug text-gray-600 break-words">{notification.message}</p>
             </div>
             <button
+              type="button"
               onClick={() => setNotification(null)}
-              className="flex-shrink-0 text-white/70 hover:text-white transition-colors ml-1"
+              className="-m-1 flex-shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Dismiss notification"
             >
               <X size={18} />
             </button>
