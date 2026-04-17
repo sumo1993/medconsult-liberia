@@ -76,7 +76,7 @@ export default function About() {
                 {doctor.status}
               </p>
             )}
-            <div className="mx-auto mb-8 w-full max-w-prose hyphens-none text-left text-lg leading-relaxed text-gray-700 sm:text-xl sm:leading-relaxed md:mx-0 md:max-w-none md:hyphens-auto md:text-justify">
+            <div className="mx-auto mb-8 w-full max-w-prose text-pretty text-left text-lg leading-relaxed text-gray-700 sm:text-xl sm:leading-relaxed md:mx-0 md:max-w-none">
               {(() => {
                 const paras = doctor.about_text
                   .split(/\n\n+/)

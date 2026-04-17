@@ -57,27 +57,27 @@ export default function AboutPage() {
         {/* Mission & Vision */}
         <section className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <Target className="text-emerald-600" size={32} />
-                  <h2 className="text-2xl font-bold text-gray-900">Our Mission</h2>
+            <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+              <div className="rounded-xl bg-white p-6 shadow-lg sm:p-8">
+                <div className="mb-4 flex items-center gap-3">
+                  <Target className="shrink-0 text-emerald-600" size={32} />
+                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Our Mission</h2>
                 </div>
-                <p className="text-left text-gray-700 leading-relaxed md:text-justify">
-                  To provide accessible, high-quality medical consultation services to individuals and 
-                  organizations across Liberia, bridging the gap between healthcare needs and expert 
+                <p className="text-pretty text-left text-base leading-relaxed text-gray-700 sm:text-lg">
+                  To provide accessible, high-quality medical consultation services to individuals and
+                  organizations across Liberia, bridging the gap between healthcare needs and expert
                   medical guidance through innovative digital solutions.
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <Globe className="text-emerald-600" size={32} />
-                  <h2 className="text-2xl font-bold text-gray-900">Our Vision</h2>
+              <div className="rounded-xl bg-white p-6 shadow-lg sm:p-8">
+                <div className="mb-4 flex items-center gap-3">
+                  <Globe className="shrink-0 text-emerald-600" size={32} />
+                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Our Vision</h2>
                 </div>
-                <p className="text-left text-gray-700 leading-relaxed md:text-justify">
-                  To become Liberia's leading medical consultation platform, recognized for excellence 
-                  in healthcare delivery, research contribution, and positive impact on public health 
+                <p className="text-pretty text-left text-base leading-relaxed text-gray-700 sm:text-lg">
+                  To become Liberia&apos;s leading medical consultation platform, recognized for excellence
+                  in healthcare delivery, research contribution, and positive impact on public health
                   outcomes across the nation.
                 </p>
               </div>
@@ -125,23 +125,23 @@ export default function AboutPage() {
 
         {/* Our Story */}
         <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Our Story</h2>
-              <div className="prose prose-lg text-gray-700 mx-auto">
-                <p className="mb-4 text-left md:text-justify">
-                  MedConsult Liberia was founded with a simple yet powerful vision: to make quality 
-                  medical consultation accessible to everyone in Liberia, regardless of their location 
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-3xl text-left">
+              <h2 className="mb-6 text-center text-3xl font-bold text-gray-900">Our Story</h2>
+              <div className="space-y-4 text-base leading-relaxed text-gray-700 sm:text-lg">
+                <p className="text-pretty">
+                  MedConsult Liberia was founded with a simple yet powerful vision: to make quality
+                  medical consultation accessible to everyone in Liberia, regardless of their location
                   or circumstances.
                 </p>
-                <p className="mb-4 text-left md:text-justify">
-                  Starting as a small practice in Monrovia, we recognized the challenges many Liberians 
-                  face in accessing expert medical advice. Through dedication and innovation, we've grown 
+                <p className="text-pretty">
+                  Starting as a small practice in Monrovia, we recognized the challenges many Liberians
+                  face in accessing expert medical advice. Through dedication and innovation, we&apos;ve grown
                   into a trusted platform connecting clients with experienced medical consultants.
                 </p>
-                <p className="text-left md:text-justify">
-                  Today, we serve hundreds of clients across Liberia, providing consultations, research 
-                  support, and healthcare guidance. Our digital platform has made it easier than ever to 
+                <p className="text-pretty">
+                  Today, we serve hundreds of clients across Liberia, providing consultations, research
+                  support, and healthcare guidance. Our digital platform has made it easier than ever to
                   get the medical expertise you need, when you need it.
                 </p>
               </div>
@@ -217,7 +217,7 @@ export default function AboutPage() {
                       )}
 
                       {member.bio && (
-                        <p className="mb-4 text-left text-sm leading-relaxed text-gray-700 md:text-justify">
+                        <p className="mb-4 text-pretty text-left text-sm leading-relaxed text-gray-700">
                           {member.bio}
                         </p>
                       )}

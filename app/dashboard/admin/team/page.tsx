@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Save, X, ArrowLeft, User, Mail, Phone, Linkedin, Facebook, Eye, EyeOff, Upload, Image as ImageIcon } from 'lucide-react';
 import PaginationControls from '@/components/PaginationControls';
 import Toast from '@/components/Toast';
+import BrowserStyleConfirmDialog from '@/components/BrowserStyleConfirmDialog';
 
 export default function AdminTeamPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function AdminTeamPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchMembers();
@@ -161,8 +163,10 @@ export default function AdminTeamPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this team member?')) return;
+  const executeDelete = async () => {
+    if (pendingDeleteId == null) return;
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
 
     try {
       const token = localStorage.getItem('auth-token');
@@ -198,6 +202,12 @@ export default function AdminTeamPage() {
 
   return (
     <>
+      <BrowserStyleConfirmDialog
+        open={pendingDeleteId !== null}
+        message="Are you sure you want to delete this team member?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => void executeDelete()}
+      />
       {toast && (
         <Toast
           message={toast.message}
@@ -581,7 +591,7 @@ export default function AdminTeamPage() {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(member.id)}
+                      onClick={() => setPendingDeleteId(member.id)}
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold"
                     >
                       <Trash2 size={16} />
