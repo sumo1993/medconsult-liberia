@@ -10,7 +10,8 @@
     "db:check": "node check-db-connection.js",
     "db:migrate:mysql-to-pg": "node scripts/migrate-mysql-to-postgres.js",
     "db:reset-user-password": "node scripts/reset-postgres-password.js",
-    "verify:smtp": "node scripts/verify-smtp.mjs"
+    "verify:smtp": "node scripts/verify-smtp.mjs",
+    "favicons": "node scripts/generate-favicons.mjs"
   },
   "overrides": {
     "react-quill": {
@@ -52,6 +53,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "png-to-ico": "^3.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
