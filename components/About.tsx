@@ -122,11 +122,12 @@ export default function About() {
                 className="mt-6 w-full rounded-2xl border border-slate-200/70 bg-white/70 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-6"
                 lang="en"
               >
-                <div className="space-y-5 text-left">
+                {/* Flush left + right edges; last line of each block stays natural (not stretched). */}
+                <div className="space-y-5 text-justify [text-align-last:left] [text-justify:inter-word] hyphens-auto">
                   {bodyParagraphs.map((para, i) => (
                     <p
                       key={i}
-                      className={`text-pretty [overflow-wrap:anywhere] text-[0.9375rem] font-normal leading-[1.8] tracking-[0.01em] text-slate-700 antialiased sm:text-[1.0625rem] sm:leading-[1.78] ${
+                      className={`[overflow-wrap:anywhere] text-[0.9375rem] font-normal leading-[1.8] tracking-[0.01em] text-slate-700 antialiased sm:text-[1.0625rem] sm:leading-[1.78] ${
                         i === 0 ? 'text-slate-800' : 'text-slate-600'
                       }`}
                     >
