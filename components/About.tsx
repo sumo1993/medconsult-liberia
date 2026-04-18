@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Quote } from 'lucide-react';
 
 interface Doctor {
   id: number;
@@ -10,28 +9,6 @@ interface Doctor {
   about_text: string;
   has_about_photo: boolean;
   status: string;
-}
-
-/** Editorial “lead” treatment for the opening bio (works for any copy from the API). */
-function AboutLeadBlock({ text }: { text: string }) {
-  return (
-    <figure className="relative overflow-hidden rounded-2xl border border-emerald-200/40 bg-gradient-to-br from-white via-white to-emerald-50/50 p-6 shadow-[0_1px_0_rgba(15,23,42,0.05),0_20px_50px_-24px_rgba(5,150,105,0.18)] ring-1 ring-slate-900/[0.04] sm:p-8 md:rounded-3xl md:p-10 max-md:text-justify max-md:hyphens-auto md:hyphens-none md:text-left">
-      <Quote
-        className="pointer-events-none absolute -right-2 -top-2 h-28 w-28 rotate-6 text-emerald-600/[0.08] sm:h-32 sm:w-32"
-        strokeWidth={1}
-        aria-hidden
-      />
-      <div
-        className="absolute left-0 top-8 bottom-8 w-1 rounded-full bg-gradient-to-b from-emerald-500 via-teal-500 to-emerald-700 sm:top-10 sm:bottom-10"
-        aria-hidden
-      />
-      <blockquote className="relative pl-5 sm:pl-7">
-        <p className="text-pretty text-[1.05rem] font-normal leading-[1.72] tracking-[-0.015em] text-slate-700 antialiased sm:text-xl sm:leading-[1.75] md:text-[1.35rem] md:leading-[1.8] [&::selection]:bg-emerald-200/70">
-          {text}
-        </p>
-      </blockquote>
-    </figure>
-  );
 }
 
 export default function About() {
@@ -89,6 +66,8 @@ export default function About() {
     .split(/\n\n+/)
     .map((s) => s.trim())
     .filter(Boolean);
+  const bodyParagraphs =
+    aboutParagraphs.length > 0 ? aboutParagraphs : [doctor.about_text.trim()].filter(Boolean);
 
   return (
     <section
@@ -136,23 +115,21 @@ export default function About() {
                 </p>
               ) : null}
 
-              <div className="mt-8 lg:max-w-[42rem]">
-                {aboutParagraphs.length === 0 ? (
-                  <AboutLeadBlock text={doctor.about_text} />
-                ) : (
-                  <>
-                    <AboutLeadBlock text={aboutParagraphs[0]} />
-                    {aboutParagraphs.length > 1 ? (
-                      <div className="mt-8 space-y-5 border-t border-slate-200/80 pt-8 text-pretty text-base leading-relaxed text-slate-600 max-md:text-justify max-md:hyphens-auto md:hyphens-none sm:text-[1.05rem] sm:leading-8">
-                        {aboutParagraphs.slice(1).map((para, i) => (
-                          <p key={i} className="break-words [text-wrap:pretty]">
-                            {para}
-                          </p>
-                        ))}
-                      </div>
-                    ) : null}
-                  </>
-                )}
+              <div className="mt-8 max-w-prose text-pretty lg:max-w-[44rem]">
+                <div className="space-y-6 max-md:text-justify max-md:hyphens-auto md:hyphens-none md:text-left">
+                  {bodyParagraphs.map((para, i) => (
+                    <p
+                      key={i}
+                      className={`break-words [text-wrap:pretty] ${
+                        i === 0
+                          ? 'text-lg font-normal leading-relaxed text-slate-800 sm:text-xl sm:leading-8'
+                          : 'text-base font-normal leading-relaxed text-slate-600 sm:text-lg sm:leading-8'
+                      }`}
+                    >
+                      {para}
+                    </p>
+                  ))}
+                </div>
               </div>
 
               <div className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
