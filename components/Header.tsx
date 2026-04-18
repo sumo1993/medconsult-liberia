@@ -79,81 +79,80 @@ export default function Header() {
 
   return (
     <header className="bg-white/95 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
-      <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-y-4 py-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-x-4 lg:gap-x-8">
-          {/* Logo + mobile menu trigger (unwraps into grid on md+) */}
-          <div className="flex items-center justify-between gap-4 md:contents">
-            <Link
-              href="/"
-              className="flex items-center justify-self-start hover:opacity-80 transition-all duration-300 transform hover:scale-105"
-            >
-              <div className="relative h-20 w-20 shrink-0">
-                <Image
-                  src="/logo.svg"
-                  alt="MedConsult Liberia Logo"
-                  width={80}
-                  height={80}
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </Link>
+      <div className="mx-auto w-full max-w-[1920px] px-3 sm:px-5 lg:px-6">
+        <div className="flex items-center justify-between gap-2 py-3 sm:py-4 md:gap-3 md:py-4">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center hover:opacity-80 transition-all duration-300 transform hover:scale-105"
+          >
+            <div className="relative h-14 w-14 sm:h-16 sm:w-16 md:h-[4.25rem] md:w-[4.25rem] lg:h-20 lg:w-20">
+              <Image
+                src="/logo.svg"
+                alt="MedConsult Liberia Logo"
+                width={80}
+                height={80}
+                className="object-contain"
+                priority
+              />
+            </div>
+          </Link>
 
-            <button
-              type="button"
-              className="md:hidden shrink-0 justify-self-end p-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="md:hidden shrink-0 p-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
 
-          {/* Desktop nav — centered in the middle column so links stay grouped on ultrawide */}
-          <nav className="hidden min-w-0 md:block">
-            <ul className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 xl:gap-x-3">
-              {navLinks.map((link) => {
-                const isActive = isLinkActive(link);
-                return (
-                  <li key={link.href} className="shrink-0">
-                    <a
-                      href={link.href}
-                      className={`relative block whitespace-nowrap px-2 py-2 text-sm font-medium transition-all duration-300 group sm:px-3 sm:text-base lg:px-2.5 xl:px-3 ${
-                        isActive ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'
-                      }`}
-                    >
-                      {link.label}
-                      <span
-                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-300 ${
-                          isActive ? 'w-full' : 'w-0 group-hover:w-full'
+          {/* Desktop: keep nav + CTAs in one row (no wrap) so nothing drifts under a huge empty gap */}
+          <div className="hidden min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto overflow-y-hidden pl-2 md:flex lg:gap-2 lg:pl-4 [scrollbar-width:thin]">
+            <nav className="min-w-0">
+              <ul className="flex flex-nowrap items-center justify-end gap-x-0.5 sm:gap-x-1 lg:gap-x-1.5">
+                {navLinks.map((link) => {
+                  const isActive = isLinkActive(link);
+                  return (
+                    <li key={link.href} className="shrink-0">
+                      <a
+                        href={link.href}
+                        className={`relative block whitespace-nowrap px-1 py-1.5 text-[11px] font-medium leading-snug transition-all duration-300 group sm:px-1.5 sm:text-xs md:text-[12px] md:px-1.5 lg:text-sm lg:px-2 ${
+                          isActive ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'
                         }`}
-                      />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+                      >
+                        {link.label}
+                        <span
+                          className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-300 ${
+                            isActive ? 'w-full' : 'w-0 group-hover:w-full'
+                          }`}
+                        />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
 
-          <div className="hidden shrink-0 flex-wrap items-center justify-center gap-2 sm:gap-3 md:flex md:justify-self-end lg:justify-end">
-            <Link
-              href="/dashboard/general-consultation"
-              className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-gray-900 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300 sm:px-4 sm:text-base"
-            >
-              Join Team
-            </Link>
-            <Link
-              href="/login"
-              className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-300 sm:px-4 sm:text-base"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="whitespace-nowrap px-3 py-2 text-sm font-semibold bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-600 transition-all duration-300 shadow-md hover:shadow-lg sm:px-5 sm:text-base"
-            >
-              Sign Up
-            </Link>
+            <div className="flex shrink-0 items-center gap-0.5 border-l border-gray-200/80 pl-1.5 sm:gap-1 sm:pl-2 lg:gap-2 lg:pl-3">
+              <Link
+                href="/dashboard/general-consultation"
+                className="whitespace-nowrap rounded-lg px-1.5 py-1.5 text-[11px] font-semibold text-gray-900 hover:bg-emerald-50 hover:text-emerald-600 sm:text-xs md:px-2 lg:text-sm"
+              >
+                Join Team
+              </Link>
+              <Link
+                href="/login"
+                className="whitespace-nowrap rounded-lg px-1.5 py-1.5 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 sm:text-xs md:px-2 lg:text-sm"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="whitespace-nowrap rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 px-2 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600 sm:text-xs md:px-2.5 lg:text-sm lg:px-3"
+              >
+                Sign Up
+              </Link>
+            </div>
           </div>
         </div>
 
