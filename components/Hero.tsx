@@ -81,8 +81,8 @@ export default function Hero() {
       {/* White overlay for better text readability */}
       <div className="absolute inset-0 bg-white/90"></div>
       
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 max-w-5xl text-center">
-        <h1 className="text-center text-balance text-5xl md:text-6xl lg:text-7xl font-bold text-emerald-700 mb-8 leading-tight">
+      <div className="container relative z-10 mx-auto max-w-5xl px-4 pt-20 text-center sm:px-6 sm:pt-24 md:px-8 md:pt-0 lg:px-8">
+        <h1 className="mb-6 text-balance text-center text-5xl font-bold leading-tight text-emerald-700 md:mb-8 md:text-6xl lg:text-7xl">
           Expert Medical Consultation in Liberia
         </h1>
         <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light">
