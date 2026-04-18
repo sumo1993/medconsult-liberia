@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Eye, Calendar, Search } from 'lucide-react';
 import PaginationControls from '@/components/PaginationControls';
@@ -9,21 +9,43 @@ interface ResearchPost {
   id: number;
   title: string;
   summary: string | null;
-  content: string;
+  content?: string;
   category: string | null;
   views: number;
   published_at: string;
-  author_name: string;
+  author_name?: string;
 }
 
 export default function ClientResearchPage() {
   const router = useRouter();
   const [posts, setPosts] = useState<ResearchPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPost, setSelectedPost] = useState<ResearchPost | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const loadPostBody = useCallback(async (post: ResearchPost) => {
+    setDetailLoading(true);
+    try {
+      const r = await fetch(`/api/research/${post.id}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const full = data.post as ResearchPost;
+      setSelectedPost((prev) => {
+        if (!prev || prev.id !== post.id) return prev;
+        return {
+          ...full,
+          author_name: prev.author_name || full.author_name || 'Author',
+        };
+      });
+    } catch (e) {
+      console.error('Failed to load article body', e);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchPosts();
@@ -31,7 +53,7 @@ export default function ClientResearchPage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('/api/research?status=published');
+      const response = await fetch('/api/research?status=published&lite=1');
       if (response.ok) {
         const data = await response.json();
         setPosts(data.posts || []);
@@ -65,6 +87,12 @@ export default function ClientResearchPage() {
       setSelectedPost(sortedPosts[0] || null);
     }
   }, [sortedPosts, selectedPost]);
+
+  useEffect(() => {
+    if (!selectedPost?.id) return;
+    if (selectedPost.content != null && selectedPost.content !== '') return;
+    void loadPostBody(selectedPost);
+  }, [selectedPost?.id, selectedPost?.content, loadPostBody]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -126,7 +154,9 @@ export default function ClientResearchPage() {
               {paginatedPosts.map((post) => (
                 <div
                   key={post.id}
-                  onClick={() => setSelectedPost(post)}
+                  onClick={() => {
+                    setSelectedPost(post);
+                  }}
                   className={`bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-lg transition-shadow ${
                     selectedPost?.id === post.id ? 'ring-2 ring-emerald-500' : ''
                   }`}
@@ -168,7 +198,7 @@ export default function ClientResearchPage() {
                         {selectedPost.category}
                       </span>
                     )}
-                    <span>By {selectedPost.author_name}</span>
+                    <span>By {selectedPost.author_name ?? 'Author'}</span>
                     <span>{new Date(selectedPost.published_at).toLocaleDateString()}</span>
                     <div className="flex items-center">
                       <Eye size={14} className="mr-1" />
@@ -184,10 +214,15 @@ export default function ClientResearchPage() {
                   )}
 
                   <div className="prose max-w-none">
-                    <div
-                      className="text-gray-700 leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: selectedPost.content || '' }}
-                    />
+                    {detailLoading &&
+                    (selectedPost.content == null || selectedPost.content === '') ? (
+                      <p className="text-gray-500">Loading article…</p>
+                    ) : (
+                      <div
+                        className="text-gray-700 leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: selectedPost.content || '' }}
+                      />
+                    )}
                   </div>
                 </div>
               ) : (

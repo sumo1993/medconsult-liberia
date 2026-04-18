@@ -6,34 +6,87 @@ import { verifyAuth } from '@/lib/middleware';
 // Set max duration for this route
 export const maxDuration = 60; // 60 seconds timeout
 
+function parseTagsOnPosts(posts: RowDataPacket[]) {
+  for (const post of posts) {
+    if (post.tags && typeof post.tags === 'string') {
+      try {
+        post.tags = JSON.parse(post.tags);
+      } catch {
+        post.tags = [];
+      }
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const useLite = searchParams.get('lite') === '1';
 
     // Check if user is authenticated for accessing drafts
     const user = await verifyAuth(request);
     const isAuthenticated = user && (user.role === 'management' || user.role === 'admin');
 
-    let query = 'SELECT * FROM research_posts';
-    const params: string[] = [];
+    const params: unknown[] = [];
+    let query: string;
 
-    if (status === 'all' && isAuthenticated) {
-      // Authenticated users can see all posts
-      // No WHERE clause needed
-    } else if (status && status !== 'all') {
-      query += ' WHERE status = ?';
-      params.push(status);
+    if (useLite) {
+      // Card/list payload only — excludes BLOBs and full HTML (saves multi‑MB responses on homepage)
+      query = `
+        SELECT
+          rp.id,
+          rp.title,
+          rp.summary,
+          rp.author_id,
+          rp.category,
+          rp.tags,
+          rp.status,
+          rp.published_at,
+          rp.views,
+          rp.created_at,
+          rp.updated_at,
+          COALESCE(NULLIF(TRIM(up.full_name), ''), NULLIF(TRIM(u.full_name), ''), 'Author') AS author_name
+        FROM research_posts rp
+        LEFT JOIN users u ON rp.author_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
+      `;
+      if (status === 'all' && isAuthenticated) {
+        // all statuses
+      } else if (status && status !== 'all') {
+        query += ' WHERE rp.status = ?';
+        params.push(status);
+      } else {
+        query += ' WHERE rp.status = ?';
+        params.push('published');
+      }
+      query += ' ORDER BY rp.created_at DESC';
     } else {
-      // Default: show only published for public
-      query += ' WHERE status = "published"';
+      query = 'SELECT * FROM research_posts';
+      if (status === 'all' && isAuthenticated) {
+        // Authenticated users can see all posts
+        // No WHERE clause needed
+      } else if (status && status !== 'all') {
+        query += ' WHERE status = ?';
+        params.push(status);
+      } else {
+        // Default: show only published for public
+        query += " WHERE status = 'published'";
+      }
+
+      query += ' ORDER BY created_at DESC';
     }
 
-    query += ' ORDER BY created_at DESC';
-
     const [posts] = await pool.execute<RowDataPacket[]>(query, params);
+    parseTagsOnPosts(posts);
 
-    return NextResponse.json({ posts });
+    const headers: Record<string, string> = {
+      'Cache-Control': useLite
+        ? 'public, s-maxage=120, stale-while-revalidate=600'
+        : 'no-store, no-cache, must-revalidate',
+    };
+
+    return NextResponse.json({ posts }, { headers });
   } catch (error) {
     console.error('Error fetching research posts:', error);
     return NextResponse.json(

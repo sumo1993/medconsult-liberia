@@ -31,7 +31,7 @@ export default function ResearchPage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('/api/research?status=published');
+      const response = await fetch('/api/research?status=published&lite=1');
       if (response.ok) {
         const data = await response.json();
         setPosts(data.posts || []);

@@ -1,14 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  reactCompiler: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   experimental: {
+    optimizePackageImports: ['lucide-react'],
     serverActions: {
       bodySizeLimit: '50mb',
     },
+  },
+  reactCompiler: true,
+  typescript: {
+    ignoreBuildErrors: true,
   },
   async redirects() {
     return [
