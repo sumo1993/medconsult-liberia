@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, MessageSquare, Search, Paperclip, X, Check, CheckCheck, Reply, Smile, Undo2, Heart } from 'lucide-react';
 import UserPhotoAvatar from '@/components/UserPhotoAvatar';
+import { showAppAlert, showAppConfirm } from '@/components/AppDialogsProvider';
 
 interface UserToChat {
   id: number;
@@ -315,7 +316,10 @@ export default function ConsultantMessagesPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert('File too large. Max 5MB.');
+      void showAppAlert({
+        title: 'File too large',
+        message: 'Attachments must be 5MB or smaller.',
+      });
       return;
     }
     const reader = new FileReader();
@@ -355,7 +359,16 @@ export default function ConsultantMessagesPage() {
   };
 
   const recallMessage = async (messageId: number) => {
-    if (!confirm('Recall this message for everyone?')) return;
+    if (
+      !(await showAppConfirm({
+        title: 'Recall message',
+        message: 'Recall this message for everyone?',
+        variant: 'danger',
+        confirmLabel: 'Recall',
+        cancelLabel: 'Cancel',
+      }))
+    )
+      return;
     try {
       const token = localStorage.getItem('auth-token');
       const response = await fetch('/api/direct-messages', {

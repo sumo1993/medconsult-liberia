@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Handshake, Building2, TrendingUp, Users, CheckCircle, Mail, X } from 'lucide-react';
+import { showAppAlert } from '@/components/AppDialogsProvider';
 
 export default function PartnershipsPage() {
   const router = useRouter();
@@ -58,11 +59,17 @@ export default function PartnershipsPage() {
         setShowSuccessModal(true);
         setFormData({ name: '', type: '', logo: '', description: '', website: '', contact_email: '', contact_phone: '' });
       } else {
-        alert('Failed to submit partnership request. Please try again.');
+        await showAppAlert({
+          title: 'Submission failed',
+          message: 'Failed to submit partnership request. Please try again.',
+        });
       }
     } catch (error) {
       console.error('Error submitting partnership:', error);
-      alert('An error occurred. Please try again.');
+      await showAppAlert({
+        title: 'Something went wrong',
+        message: 'An error occurred. Please try again.',
+      });
     } finally {
       setSubmitting(false);
     }

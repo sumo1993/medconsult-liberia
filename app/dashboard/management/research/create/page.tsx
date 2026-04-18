@@ -7,6 +7,7 @@ import RichTextEditor from '@/components/RichTextEditor';
 import ImageUpload from '@/components/ImageUpload';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import AutoSaveIndicator from '@/components/AutoSaveIndicator';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 
 export default function CreateResearchPage() {
   const router = useRouter();
@@ -33,24 +34,33 @@ export default function CreateResearchPage() {
 
   // Load draft from localStorage on mount
   useEffect(() => {
-    const savedDraft = localStorage.getItem('research-draft');
-    if (savedDraft) {
+    void (async () => {
+      const savedDraft = localStorage.getItem('research-draft');
+      if (!savedDraft) return;
       try {
         const draft = JSON.parse(savedDraft);
         const draftContent = draft.formData?.content || '';
-        
+
         // Check if draft content is too large (likely has embedded images)
         if (draftContent.length > 500000) {
           const sizeMB = (draftContent.length / 1024 / 1024).toFixed(2);
           console.warn('⚠️ Draft is too large:', sizeMB, 'MB - clearing it');
           localStorage.removeItem('research-draft');
-          showNotification('error', `Previous draft was too large (${sizeMB} MB) and has been cleared. Please avoid pasting images into the editor.`);
+          showNotification(
+            'error',
+            `Previous draft was too large (${sizeMB} MB) and has been cleared. Please avoid pasting images into the editor.`
+          );
           return;
         }
-        
-        const shouldRestore = confirm('Found an unsaved draft. Would you like to restore it?');
+
+        const shouldRestore = await showAppConfirm({
+          title: 'Unsaved draft',
+          message: 'Found an unsaved draft. Would you like to restore it?',
+          confirmLabel: 'Restore',
+          cancelLabel: 'Discard',
+        });
         if (shouldRestore) {
-          setFormData(draft.formData || formData);
+          setFormData((prev) => draft.formData || prev);
           showNotification('success', 'Draft restored');
         } else {
           localStorage.removeItem('research-draft');
@@ -59,7 +69,7 @@ export default function CreateResearchPage() {
         console.error('Error loading draft:', error);
         localStorage.removeItem('research-draft');
       }
-    }
+    })();
   }, []);
 
   // Auto-save to localStorage
@@ -175,7 +185,14 @@ export default function CreateResearchPage() {
       // Warn if payload is very large
       if (payloadSize > 10 * 1024 * 1024) { // 10MB
         console.warn('⚠️ Large payload detected:', payloadSizeMB, 'MB');
-        if (!confirm(`The post data is quite large (${payloadSizeMB} MB). This may take a while to upload. Continue?`)) {
+        if (
+          !(await showAppConfirm({
+            title: 'Large upload',
+            message: `The post data is quite large (${payloadSizeMB} MB). This may take a while to upload. Continue?`,
+            confirmLabel: 'Continue',
+            cancelLabel: 'Cancel',
+          }))
+        ) {
           setIsSubmitting(false);
           return;
         }

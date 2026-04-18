@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import { useCensusReportsAccess } from '@/hooks/useCensusReportsAccess';
 import { DISTRICTS_BY_COUNTY, getCountyCanonical, LIBERIA_COUNTIES } from '@/lib/locations/liberia';
@@ -1334,8 +1335,17 @@ export default function ResearcherCensusReportsPage() {
                         <button
                           type="button"
                           disabled={assignmentUpdatingId === assignment.id}
-                          onClick={() => {
-                            if (window.confirm('End this survey? Census workers will no longer be able to submit for it.')) {
+                          onClick={async () => {
+                            if (
+                              await showAppConfirm({
+                                title: 'End survey',
+                                message:
+                                  'End this survey? Census workers will no longer be able to submit for it.',
+                                variant: 'danger',
+                                confirmLabel: 'End survey',
+                                cancelLabel: 'Cancel',
+                              })
+                            ) {
                               updateAssignmentStatus(assignment.id, 'closed');
                             }
                           }}

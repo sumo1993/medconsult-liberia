@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AppDialogsProvider from "@/components/AppDialogsProvider";
 
 export const metadata: Metadata = {
   title: "MedConsult Liberia | Expert Medical Consultation Services",
@@ -25,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body className="antialiased" suppressHydrationWarning>
-        {children}
+        <AppDialogsProvider>{children}</AppDialogsProvider>
       </body>
     </html>
   );

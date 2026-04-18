@@ -22,6 +22,7 @@ import {
   Loader2
 } from 'lucide-react';
 import PaginationControls from '@/components/PaginationControls';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 
 interface Testimonial {
   id: number;
@@ -211,7 +212,16 @@ export default function AdminTestimonialsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this testimonial?')) return;
+    if (
+      !(await showAppConfirm({
+        title: 'Delete testimonial',
+        message: 'Are you sure you want to delete this testimonial?',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+      }))
+    )
+      return;
     
     try {
       const token = localStorage.getItem('auth-token');

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { showAppAlert } from '@/components/AppDialogsProvider';
 import { Camera, X, Image, Upload, Trash2 } from 'lucide-react';
 
 interface PhotoCaptureProps {
@@ -51,7 +52,10 @@ export default function PhotoCapture({ onPhotosCaptured, maxPhotos = 5, classNam
       setShowCamera(true);
     } catch (err) {
       console.error('Camera access denied:', err);
-      alert('Could not access camera. Please use file upload instead.');
+      void showAppAlert({
+        title: 'Camera unavailable',
+        message: 'Could not access camera. Please use file upload instead.',
+      });
     }
   };
 

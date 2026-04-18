@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bell, Lock, Eye, EyeOff, Mail, User, Shield, Trash2, Download, Moon, Sun } from 'lucide-react';
 import Toast from '@/components/Toast';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 
 export default function ClientSettingsPage() {
   const router = useRouter();
@@ -177,7 +178,15 @@ export default function ClientSettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+    if (
+      await showAppConfirm({
+        title: 'Delete account',
+        message: 'Are you sure you want to delete your account? This action cannot be undone.',
+        variant: 'danger',
+        confirmLabel: 'Continue',
+        cancelLabel: 'Cancel',
+      })
+    ) {
       showNotification('error', 'Please contact support to delete your account.');
     }
   };

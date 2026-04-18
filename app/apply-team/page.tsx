@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { showAppAlert } from '@/components/AppDialogsProvider';
 import { ArrowLeft, Upload, CheckCircle } from 'lucide-react';
 
 export default function ApplyTeamPage() {
@@ -52,7 +53,10 @@ export default function ApplyTeamPage() {
             errorMessage = await uploadResponse.text();
           }
           console.error('Upload error:', errorMessage);
-          alert(`Failed to upload resume: ${errorMessage}`);
+          await showAppAlert({
+            title: 'Upload failed',
+            message: `Failed to upload resume: ${errorMessage}`,
+          });
           setIsSubmitting(false);
           return;
         }
@@ -85,11 +89,17 @@ export default function ApplyTeamPage() {
       } else {
         const errorData = await response.json();
         console.error('Submission error:', errorData);
-        alert(`Failed to submit application: ${errorData.error || 'Unknown error'}`);
+        await showAppAlert({
+          title: 'Submission failed',
+          message: `Failed to submit application: ${errorData.error || 'Unknown error'}`,
+        });
       }
     } catch (error) {
       console.error('Error submitting application:', error);
-      alert(`Network error: ${error instanceof Error ? error.message : 'Please try again.'}`);
+      await showAppAlert({
+        title: 'Network error',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }

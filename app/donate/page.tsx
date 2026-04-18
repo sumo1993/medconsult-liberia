@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Smartphone, Building2, Globe, Heart, Copy, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { showAppAlert } from '@/components/AppDialogsProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -78,14 +79,23 @@ export default function DonatePage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert(data.message || 'Thank you! We will contact you shortly about your donation.');
+        await showAppAlert({
+          title: 'Thank you',
+          message: data.message || 'We will contact you shortly about your donation.',
+        });
         setShowContactForm(false);
         setFormData({ name: '', email: '', phone: '', amount: '', message: '' });
       } else {
-        alert(data.error || 'Failed to submit inquiry. Please try again.');
+        await showAppAlert({
+          title: 'Submission failed',
+          message: data.error || 'Failed to submit inquiry. Please try again.',
+        });
       }
     } catch (error) {
-      alert('Network error. Please try again.');
+      await showAppAlert({
+        title: 'Network error',
+        message: 'Please try again.',
+      });
     }
   };
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { showAppAlert } from '@/components/AppDialogsProvider';
 
 /**
  * Hook to continuously check if the user's account is still active
@@ -16,7 +17,7 @@ export function useAccountStatus() {
     const MAX_FAILURES = 2; // Allow 2 failures before logging out
     const controller = new AbortController();
 
-    const checkAccountStatus = async () => {
+    const checkAccountStatus = async (): Promise<void> => {
       if (!isMountedRef.current) return;
       // Prevent multiple simultaneous checks
       if (checkingRef.current) return;
@@ -55,7 +56,11 @@ export function useAccountStatus() {
           // Check if account is suspended or inactive
           if (data.status && data.status !== 'active') {
             console.log(`[Account Status] Account is ${data.status} - logging out`);
-            alert(`Your account has been ${data.status}. Please contact support for assistance.`);
+            await showAppAlert({
+              title: 'Account unavailable',
+              message: `Your account has been ${data.status}. Please contact support for assistance.`,
+              okLabel: 'OK',
+            });
             handleLogout();
           }
         } else {

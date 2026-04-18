@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Upload, User, Eye, CheckCircle, AlertCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import PaginationControls from '@/components/PaginationControls';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 
 interface Doctor {
   id: number;
@@ -162,7 +163,16 @@ export default function AboutSettingsPage() {
   const handleDeletePhoto = async () => {
     if (!selectedDoctorId) return;
     
-    if (!confirm('Are you sure you want to delete this photo?')) return;
+    if (
+      !(await showAppConfirm({
+        title: 'Delete photo',
+        message: 'Are you sure you want to delete this photo?',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+      }))
+    )
+      return;
 
     try {
       const token = localStorage.getItem('auth-token');

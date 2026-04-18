@@ -10,6 +10,7 @@ import { useAutoSave } from '@/hooks/useAutoSave';
 import { getCountyCanonical, isCoordinateInLiberia, LIBERIA_COUNTIES } from '@/lib/locations/liberia';
 import { getElectoralOptionsForCounty } from '@/lib/locations/liberia-electoral';
 import LocationSelector, { type LocationValue } from '@/components/LocationSelector';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 
 interface CensusReport {
   id: number;
@@ -989,9 +990,12 @@ export default function CensusDashboardPage() {
     const offline = typeof navigator !== 'undefined' && !navigator.onLine;
     if (offline) {
       if (duplicatePreview?.duplicate_exists) {
-        const shouldContinue = window.confirm(
-          `A report for this community and date may already exist (ID: ${duplicatePreview.existing_report?.id || 'unknown'}). Queue this submission anyway?`
-        );
+        const shouldContinue = await showAppConfirm({
+          title: 'Possible duplicate',
+          message: `A report for this community and date may already exist (ID: ${duplicatePreview.existing_report?.id || 'unknown'}). Queue this submission anyway?`,
+          confirmLabel: 'Queue anyway',
+          cancelLabel: 'Cancel',
+        });
         if (!shouldContinue) {
           setMessage({ type: 'warning', text: 'Queued submission cancelled.' });
           setSubmitting(false);
@@ -1011,9 +1015,12 @@ export default function CensusDashboardPage() {
 
     try {
       if (duplicatePreview?.duplicate_exists) {
-        const shouldContinue = window.confirm(
-          `A report for this community and date already exists (ID: ${duplicatePreview.existing_report?.id || 'unknown'}). Continue anyway?`
-        );
+        const shouldContinue = await showAppConfirm({
+          title: 'Duplicate report',
+          message: `A report for this community and date already exists (ID: ${duplicatePreview.existing_report?.id || 'unknown'}). Continue anyway?`,
+          confirmLabel: 'Continue',
+          cancelLabel: 'Cancel',
+        });
         if (!shouldContinue) {
           setMessage({ type: 'warning', text: 'Submission cancelled because duplicate was detected.' });
           setSubmitting(false);
@@ -1040,9 +1047,12 @@ export default function CensusDashboardPage() {
       }
 
       if (response.status === 409 && data?.duplicate_exists) {
-        const shouldContinue = window.confirm(
-          'A report for this location and date already exists. Continue?'
-        );
+        const shouldContinue = await showAppConfirm({
+          title: 'Duplicate report',
+          message: 'A report for this location and date already exists. Continue?',
+          confirmLabel: 'Continue',
+          cancelLabel: 'Cancel',
+        });
         if (!shouldContinue) {
           setMessage({ type: 'warning', text: 'Submission cancelled by user.' });
           setSubmitting(false);

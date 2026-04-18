@@ -45,7 +45,7 @@ export default function BrowserStyleConfirmDialog({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 p-4 pb-[max(5.75rem,env(safe-area-inset-bottom,0px)+5rem)] backdrop-blur-[2px] sm:items-center sm:pb-4 ${overlayClassName ?? ''}`}
+      className={`fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/45 p-4 pb-[max(5.75rem,env(safe-area-inset-bottom,0px)+5rem)] backdrop-blur-sm sm:items-center sm:pb-4 ${overlayClassName ?? ''}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -60,7 +60,7 @@ export default function BrowserStyleConfirmDialog({
         className="relative z-10 w-full max-w-md animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="overflow-hidden rounded-t-3xl border border-gray-100 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.18)] ring-1 ring-black/[0.04] sm:rounded-2xl">
+        <div className="overflow-hidden rounded-t-3xl border border-slate-200/90 bg-white shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/[0.04] sm:rounded-2xl">
           <div className="flex gap-4 p-5 sm:p-6">
             <div
               className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconWrap}`}
@@ -81,7 +81,7 @@ export default function BrowserStyleConfirmDialog({
               <p className="mt-2 text-sm leading-relaxed text-gray-600">{message}</p>
             </div>
           </div>
-          <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/80 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/90 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
             <button
               type="button"
               onClick={onCancel}

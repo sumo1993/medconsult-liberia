@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Clock, Reply, Send, MessageCircle, CheckCircle, XCircle, Archive, Trash2 } from 'lucide-react';
 import PaginationControls from '@/components/PaginationControls';
+import { showAppConfirm } from '@/components/AppDialogsProvider';
 
 interface Message {
   id: number;
@@ -184,8 +185,17 @@ export default function MessagesPage() {
 
   const handleDelete = async () => {
     if (!selectedMessage) return;
-    
-    if (!confirm('Are you sure you want to delete this message?')) return;
+
+    if (
+      !(await showAppConfirm({
+        title: 'Delete message',
+        message: 'Are you sure you want to delete this message?',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+      }))
+    )
+      return;
 
     try {
       const token = localStorage.getItem('auth-token');
