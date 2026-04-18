@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { devLogError } from '@/lib/utils';
 
 interface Doctor {
   id: number;
@@ -37,7 +38,7 @@ export default function About() {
         }
       }
     } catch (error) {
-      console.error('Error fetching doctor:', error);
+      devLogError('Error fetching doctor:', error);
     } finally {
       setLoading(false);
     }

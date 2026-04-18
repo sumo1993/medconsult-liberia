@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { MapPin, Phone, Mail } from 'lucide-react';
+import { devLogError } from '@/lib/utils';
 
 export default function Footer() {
   const [siteSettings, setSiteSettings] = useState({
@@ -22,7 +23,7 @@ export default function Footer() {
         setSiteSettings(data.settings);
       }
     } catch (error) {
-      console.error('Error fetching site settings:', error);
+      devLogError('Error fetching site settings:', error);
     }
   };
   return (

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Star, Quote, User, Loader2 } from 'lucide-react';
+import { devLogError } from '@/lib/utils';
 
 interface Testimonial {
   id: number;
@@ -79,7 +80,7 @@ export default function TestimonialsPage() {
         <section className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">Client Testimonials</h1>
-            <p className="text-xl text-emerald-100">
+            <p className="text-xl text-white/95">
               Hear what our clients say about their experience with MedConsult Liberia
             </p>
           </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Star, Quote, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { devLogError } from '@/lib/utils';
 
 interface Testimonial {
   id: number;
@@ -67,7 +68,7 @@ export default function Testimonials() {
           setTestimonials(defaultTestimonials);
         }
       } catch (error) {
-        console.error('Error fetching testimonials:', error);
+        devLogError('Error fetching testimonials:', error);
         setTestimonials(defaultTestimonials);
       } finally {
         setLoading(false);
@@ -124,7 +125,7 @@ export default function Testimonials() {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Client Testimonials
           </h2>
-          <p className="text-emerald-100 text-lg max-w-2xl mx-auto">
+          <p className="text-lg max-w-2xl mx-auto text-white/95">
             Hear what our clients say about their experience with MedConsult Liberia
           </p>
         </div>
@@ -223,30 +224,46 @@ export default function Testimonials() {
           {visibleTestimonials.length > 1 && (
             <>
               <button
+                type="button"
                 onClick={prevSlide}
-                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 bg-white/90 p-2 rounded-full shadow-lg hover:bg-white transition-colors"
+                aria-label="Previous testimonial"
+                className="absolute left-0 top-1/2 flex h-11 w-11 -translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-lg transition-colors hover:bg-white sm:-translate-x-2"
               >
-                <ChevronLeft className="w-5 h-5 text-emerald-600" />
+                <ChevronLeft className="h-5 w-5 text-emerald-600" aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={nextSlide}
-                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 bg-white/90 p-2 rounded-full shadow-lg hover:bg-white transition-colors"
+                aria-label="Next testimonial"
+                className="absolute right-0 top-1/2 flex h-11 w-11 translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-lg transition-colors hover:bg-white sm:translate-x-2"
               >
-                <ChevronRight className="w-5 h-5 text-emerald-600" />
+                <ChevronRight className="h-5 w-5 text-emerald-600" aria-hidden />
               </button>
             </>
           )}
 
-          {/* Dots Indicator */}
-          <div className="flex justify-center gap-2 mt-6">
+          {/* Dots Indicator — min 44×44px hit targets for touch / Lighthouse */}
+          <div
+            className="mt-6 flex flex-wrap justify-center gap-1"
+            role="group"
+            aria-label="Choose testimonial"
+          >
             {visibleTestimonials.map((_, index) => (
               <button
                 key={index}
+                type="button"
+                aria-current={index === currentIndex ? 'true' : undefined}
+                aria-label={`Testimonial ${index + 1} of ${visibleTestimonials.length}`}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  index === currentIndex ? 'bg-white' : 'bg-white/40'
-                }`}
-              />
+                className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                <span
+                  className={`block h-2.5 w-2.5 rounded-full transition-colors ${
+                    index === currentIndex ? 'bg-white' : 'bg-white/50'
+                  }`}
+                  aria-hidden
+                />
+              </button>
             ))}
           </div>
         </div>

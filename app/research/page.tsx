@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Calendar, ArrowLeft, Search } from 'lucide-react';
+import { devLogError } from '@/lib/utils';
 
 interface ResearchPost {
   id: number;
@@ -37,7 +38,7 @@ export default function ResearchPage() {
         setPosts(data.posts || []);
       }
     } catch (error) {
-      console.error('Error fetching research posts:', error);
+      devLogError('Error fetching research posts:', error);
     } finally {
       setLoading(false);
     }

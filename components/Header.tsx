@@ -99,11 +99,12 @@ export default function Header() {
 
           <button
             type="button"
-            className="md:hidden shrink-0 p-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300"
+            className="md:hidden flex h-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-gray-700 transition-all duration-300 hover:bg-emerald-50 hover:text-emerald-600"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
+            aria-expanded={isMenuOpen}
           >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isMenuOpen ? <X size={24} aria-hidden /> : <Menu size={24} aria-hidden />}
           </button>
 
           {/* Desktop: keep nav + CTAs in one row (no wrap) so nothing drifts under a huge empty gap */}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Award, Building2, Star, Users, Calendar } from 'lucide-react';
+import { devLogError } from '@/lib/utils';
 
 interface Stats {
   research_projects: number;
@@ -36,7 +37,7 @@ export default function Statistics() {
         });
       }
     } catch (error) {
-      console.error('Error fetching statistics:', error);
+      devLogError('Error fetching statistics:', error);
     }
   };
 

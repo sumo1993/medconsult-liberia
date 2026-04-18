@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { devLogError } from '@/lib/utils';
 
 interface HeroImage {
   id: number;
@@ -50,7 +51,7 @@ export default function Hero() {
         }
       }
     } catch (error) {
-      console.error('Error fetching hero images:', error);
+      devLogError('Error fetching hero images:', error);
       // Use default image on error
       setHeroImages([{
         id: 0,

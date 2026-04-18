@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Calendar, User, ArrowRight } from 'lucide-react';
+import { devLogError } from '@/lib/utils';
 
 interface ResearchPost {
   id: number;
@@ -30,7 +31,7 @@ export default function ResearchSection() {
         setPosts(data.posts.slice(0, 3)); // Show only 3 latest
       }
     } catch (error) {
-      console.error('Error fetching research posts:', error);
+      devLogError('Error fetching research posts:', error);
     } finally {
       setLoading(false);
     }
