@@ -70,6 +70,9 @@ export default function About() {
   const bodyParagraphs =
     aboutParagraphs.length > 0 ? aboutParagraphs : [doctor.about_text.trim()].filter(Boolean);
 
+  const statusLabel =
+    doctor.status?.replace(/\bCertifiled\b/gi, 'Certified') ?? doctor.status;
+
   return (
     <section
       id="about"
@@ -86,11 +89,10 @@ export default function About() {
 
       {/* Centered content rail: ~1152px max, equal horizontal padding, vertical rhythm */}
       <div className="relative mx-auto w-full max-w-[1152px] px-4 py-10 md:px-5 md:py-[60px] lg:px-5">
-        <div className="grid grid-cols-1 items-center gap-10 md:gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-[60px]">
+        <div className="grid grid-cols-1 items-start gap-10 md:gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-x-14 lg:gap-y-10">
           {/* Copy — first on mobile */}
           <div className="order-1 flex min-w-0 w-full flex-col">
-            {/* One shared max-width so heading, copy, and actions share the same right edge */}
-            <div className="w-full max-w-xl text-left">
+            <div className="w-full max-w-xl text-left lg:max-w-2xl">
               <p className="text-[11px] font-semibold uppercase tracking-[2px] text-emerald-600/85 sm:text-xs">
                 Leadership
               </p>
@@ -109,26 +111,27 @@ export default function About() {
               <div className="mt-4 h-px w-16 bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
 
               {doctor.status ? (
-                <p className="mt-5 inline-flex items-center rounded-lg border border-emerald-200/70 bg-white/85 px-3 py-1 text-sm font-medium text-emerald-800 shadow-sm backdrop-blur-sm">
+                <p className="mt-4 inline-flex items-center rounded-full border border-emerald-200/60 bg-emerald-50/50 px-3.5 py-1.5 text-sm font-medium text-emerald-900 sm:text-[0.9375rem]">
                   <span
                     className="mr-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
                     aria-hidden
                   />
-                  {doctor.status}
+                  {statusLabel}
                 </p>
               ) : null}
 
               <div
-                className="mt-6 w-full rounded-2xl border border-slate-200/70 bg-white/70 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-6"
+                className="mt-5 w-full rounded-xl border border-slate-100 bg-white/80 p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6 md:rounded-2xl md:p-7"
                 lang="en"
               >
-                {/* Flush left + right edges; last line of each block stays natural (not stretched). */}
-                <div className="space-y-5 text-justify [text-align-last:left] [text-justify:inter-word] hyphens-auto">
+                <div className="space-y-5 text-left text-pretty sm:space-y-6">
                   {bodyParagraphs.map((para, i) => (
                     <p
                       key={i}
-                      className={`[overflow-wrap:anywhere] text-[0.9375rem] font-normal leading-[1.8] tracking-[0.01em] text-slate-700 antialiased sm:text-[1.0625rem] sm:leading-[1.78] ${
-                        i === 0 ? 'text-slate-800' : 'text-slate-600'
+                      className={`[overflow-wrap:anywhere] antialiased ${
+                        i === 0
+                          ? 'text-base font-medium leading-[1.75] text-slate-800 sm:text-[1.0625rem] sm:leading-[1.78] md:text-[1.125rem] md:leading-[1.8]'
+                          : 'text-[0.9375rem] font-normal leading-[1.75] text-slate-600 sm:text-base sm:leading-[1.78] md:leading-[1.8]'
                       }`}
                     >
                       {para}
@@ -137,18 +140,18 @@ export default function About() {
                 </div>
               </div>
 
-              <div className="mt-8 flex w-full flex-col gap-4 sm:flex-row sm:flex-wrap">
+              <div className="mt-9 grid w-full grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-4">
                 <button
                   type="button"
                   onClick={handleReadFullBio}
-                  className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-9 py-3.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/15 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg sm:w-auto sm:min-w-[11.5rem] sm:text-[15px]"
+                  className="inline-flex w-full min-h-[2.875rem] items-center justify-center rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-600/12 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg sm:px-7 sm:text-[15px]"
                 >
                   Read full biography
                 </button>
                 <button
                   type="button"
                   onClick={handleContactMe}
-                  className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white/90 px-8 py-3.5 text-sm font-semibold text-slate-800 shadow-sm backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-800 sm:w-auto sm:min-w-[11rem]"
+                  className="inline-flex w-full min-h-[2.875rem] items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-800 sm:text-[15px]"
                 >
                   Contact me
                 </button>
@@ -156,11 +159,11 @@ export default function About() {
             </div>
           </div>
 
-          {/* Portrait — below text on mobile */}
-          <div className="order-2 flex w-full justify-center lg:justify-end">
+          {/* Portrait — top-aligned with copy on lg; below text on mobile */}
+          <div className="order-2 flex w-full justify-center self-start lg:justify-end">
             <div className="relative w-full max-w-md lg:max-w-none">
               <div
-                className="absolute -inset-0.5 rounded-[18px] bg-gradient-to-br from-emerald-400/35 via-teal-300/15 to-transparent opacity-80 blur-sm"
+                className="absolute -inset-0.5 rounded-[18px] bg-gradient-to-br from-emerald-400/25 via-teal-300/10 to-transparent opacity-70 blur-sm"
                 aria-hidden
               />
               <div className="relative overflow-hidden rounded-[18px] bg-slate-100 shadow-[0_10px_30px_rgba(0,0,0,0.08)] ring-1 ring-slate-900/[0.06]">
