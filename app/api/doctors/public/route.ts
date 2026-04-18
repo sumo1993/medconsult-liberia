@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
        FROM users u
        LEFT JOIN user_profiles up ON u.id = up.user_id
        LEFT JOIN doctor_about_me dam ON u.id = dam.user_id
-       WHERE u.role = 'management' OR u.role = 'admin'
+       WHERE u.role = 'management'
        ORDER BY COALESCE(up.full_name, u.full_name) ASC`
     );
 

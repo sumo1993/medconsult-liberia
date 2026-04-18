@@ -40,9 +40,10 @@ export default function DoctorsPage() {
       const response = await fetch('/api/doctors/public');
       if (response.ok) {
         const data = await response.json();
-        // Filter to only show lead consultant (exclude System Administrator)
-        const filteredDoctors = data.doctors.filter((doc: Doctor) => 
-          doc.full_name !== 'System Administrator'
+        // Exclude non-consultant staff if any slip through (API is management-only)
+        const excluded = new Set(['System Administrator', 'Admin Dashboard User']);
+        const filteredDoctors = data.doctors.filter(
+          (doc: Doctor) => doc.full_name && !excluded.has(doc.full_name.trim())
         );
         setDoctors(filteredDoctors);
       }
@@ -99,7 +100,13 @@ export default function DoctorsPage() {
             <p className="text-gray-400 text-sm mt-2">Please check back later</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div
+            className={
+              doctors.length === 1
+                ? 'mx-auto grid max-w-md grid-cols-1 gap-8'
+                : 'grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3'
+            }
+          >
             {doctors.map((doctor) => (
               <div
                 key={doctor.id}
