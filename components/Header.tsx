@@ -79,76 +79,82 @@ export default function Header() {
 
   return (
     <header className="bg-white/95 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-5">
-          {/* Logo */}
-          <Link href="/" className="flex items-center hover:opacity-80 transition-all duration-300 transform hover:scale-105">
-            <div className="relative h-20 w-20">
-              <Image 
-                src="/logo.svg" 
-                alt="MedConsult Liberia Logo" 
-                width={80}
-                height={80}
-                className="object-contain"
-                priority
-              />
-            </div>
-          </Link>
+      <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-y-4 py-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-x-4 lg:gap-x-8">
+          {/* Logo + mobile menu trigger (unwraps into grid on md+) */}
+          <div className="flex items-center justify-between gap-4 md:contents">
+            <Link
+              href="/"
+              className="flex items-center justify-self-start hover:opacity-80 transition-all duration-300 transform hover:scale-105"
+            >
+              <div className="relative h-20 w-20 shrink-0">
+                <Image
+                  src="/logo.svg"
+                  alt="MedConsult Liberia Logo"
+                  width={80}
+                  height={80}
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            <ul className="flex items-center space-x-1">
+            <button
+              type="button"
+              className="md:hidden shrink-0 justify-self-end p-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+
+          {/* Desktop nav — centered in the middle column so links stay grouped on ultrawide */}
+          <nav className="hidden min-w-0 md:block">
+            <ul className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 xl:gap-x-3">
               {navLinks.map((link) => {
                 const isActive = isLinkActive(link);
                 return (
-                  <li key={link.href}>
+                  <li key={link.href} className="shrink-0">
                     <a
                       href={link.href}
-                      className={`relative px-4 py-2 font-medium transition-all duration-300 group ${
-                        isActive 
-                          ? 'text-emerald-600' 
-                          : 'text-gray-700 hover:text-emerald-600'
+                      className={`relative block whitespace-nowrap px-2 py-2 text-sm font-medium transition-all duration-300 group sm:px-3 sm:text-base lg:px-2.5 xl:px-3 ${
+                        isActive ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'
                       }`}
                     >
                       {link.label}
-                      <span className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-300 ${
-                        isActive ? 'w-full' : 'w-0 group-hover:w-full'
-                      }`}></span>
+                      <span
+                        className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-300 ${
+                          isActive ? 'w-full' : 'w-0 group-hover:w-full'
+                        }`}
+                      />
                     </a>
                   </li>
                 );
               })}
             </ul>
-            <div className="flex items-center space-x-3 ml-6">
-              <Link
-                href="/dashboard/general-consultation"
-                className="px-5 py-2 text-gray-900 font-semibold hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300"
-              >
-                Join Team
-              </Link>
-              <Link
-                href="/login"
-                className="px-5 py-2 text-emerald-600 font-semibold hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-300"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-semibold rounded-lg hover:from-emerald-700 hover:to-emerald-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-              >
-                Sign Up
-              </Link>
-            </div>
           </nav>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="hidden shrink-0 flex-wrap items-center justify-center gap-2 sm:gap-3 md:flex md:justify-self-end lg:justify-end">
+            <Link
+              href="/dashboard/general-consultation"
+              className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-gray-900 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-300 sm:px-4 sm:text-base"
+            >
+              Join Team
+            </Link>
+            <Link
+              href="/login"
+              className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-300 sm:px-4 sm:text-base"
+            >
+              Login
+            </Link>
+            <Link
+              href="/register"
+              className="whitespace-nowrap px-3 py-2 text-sm font-semibold bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg hover:from-emerald-700 hover:to-emerald-600 transition-all duration-300 shadow-md hover:shadow-lg sm:px-5 sm:text-base"
+            >
+              Sign Up
+            </Link>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
